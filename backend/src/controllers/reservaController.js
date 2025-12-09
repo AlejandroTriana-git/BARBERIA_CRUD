@@ -250,6 +250,9 @@ export const cancelarReserva = async (req, res) => {
   try {
     const { idReserva } = req.params;
 
+    const {motivo} = req.body;
+    
+
     // Iniciar la transacción
     await connection.beginTransaction();
 
@@ -281,8 +284,8 @@ export const cancelarReserva = async (req, res) => {
 
     // 3. Insertar registro de cancelación en tabla secundaria
     await connection.query(
-      "INSERT INTO cancelacionreserva (idReserva, fechaCancelacion) VALUES (?, ?)",
-      [idReserva, new Date()]
+      "INSERT INTO cancelacionreserva (idReserva, fechaCancelacion, motivo) VALUES (?, ?, ?)",
+      [idReserva, new Date(), motivo]
     );
 
     // Confirmar cambios

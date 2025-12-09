@@ -129,15 +129,44 @@ export const obtenerHorariosDisponibles = async (req, res) => {
     );
     
     // ========================================================================
+    // PASO 5.5: Obtener hora actual si es HOY
+    // ========================================================================
+    const ahora = new Date();
+    const esHoy = fecha === ahora.toISOString().split('T')[0];
+    let horaActual = ahora.getHours();
+    let minutoActual = ahora.getMinutes();
+
+    // Redondear al siguiente slot de 30 minutos
+    if (esHoy) {
+      // Si estamos en minuto 0-29, el próximo slot es :30 de esta hora
+      // Si estamos en minuto 30-59, el próximo slot es :00 de la siguiente hora
+      if (minutoActual < 30) {
+        minutoActual = 30;
+      } else {
+        horaActual += 1;
+        minutoActual = 0;
+      }
+    }
+
+    // ========================================================================
     // PASO 6: Generar todos los horarios posibles en intervalos de 30 min
     // ========================================================================
     const horariosDisponibles = [];
-    
+
     for (let hora = horaInicio; hora <= horaFin; hora++) {
       const minutosIniciales = (hora === horaInicio) ? minutoInicio : 0;
       const minutosFinal = (hora === horaFin) ? minutoFin : 60;
       
       for (let minuto = minutosIniciales; minuto < minutosFinal; minuto += 30) {
+        // ====================================================================
+        // FILTRO: Si es HOY, solo mostrar horarios futuros
+        // ====================================================================
+        if (esHoy) {
+          if (hora < horaActual || (hora === horaActual && minuto < minutoActual)) {
+            continue; // Saltar este slot porque ya pasó
+          }
+        }
+        
         const horaFormateada = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
         const fechaHoraCompleta = `${fecha} ${horaFormateada}:00`;
         
@@ -154,7 +183,6 @@ export const obtenerHorariosDisponibles = async (req, res) => {
         }
       }
     }
-    
     res.json({
       duracionTotal,
       horariosDisponibles,

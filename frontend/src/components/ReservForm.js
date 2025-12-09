@@ -245,6 +245,9 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
     });
   };
 
+
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -253,6 +256,43 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
       return;
     }
 
+    // ============================================================================
+    // OBTENER NOMBRES PARA EL CONFIRM
+    // ============================================================================
+    
+    // Buscar el cliente seleccionado
+    const clienteSeleccionado = clientes.find(c => c.idCliente === parseInt(idCliente));//Manera de buscar el nombre de las cosas que ya he traido y que conincidan. (array.find(elemento => condición))
+    const nombreCliente = clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente';
+
+    // Buscar el barbero seleccionado
+    const barberoSeleccionado = barberos.find(b => b.idBarbero === parseInt(idBarbero));
+    const nombreBarbero = barberoSeleccionado ? (barberoSeleccionado.nombreBarberos) : 'Barbero';
+
+    // Buscar los nombres de los servicios seleccionados
+    const nombresServicios = serviciosDisponibles
+      .filter(s => serviciosSeleccionados.includes(s.idServicio))
+      .map(s => s.nombreServicio)
+      .join(', ');
+
+    // ============================================================================
+    // MENSAJE DE CONFIRMACIÓN
+    // ============================================================================
+    const mensaje = `¿Confirmar reserva ${nombreCliente}?
+
+  
+      Barbero: ${nombreBarbero}
+      Fecha: ${fecha}
+      Hora: ${hora}
+      Servicios: ${nombresServicios}
+      Duración total: ${duracionTotal} minutos`;
+
+    if (!window.confirm(mensaje)) {
+      return; // Si cancela, no continuar
+    }
+
+    // ============================================================================
+    // PROCESAR LA RESERVA
+    // ============================================================================
     const fechaHoraCompleta = `${fecha} ${hora}:00`;
 
     const reservaData = {
@@ -260,10 +300,8 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
       idBarbero: parseInt(idBarbero),
       fecha: fechaHoraCompleta,
       detalle: detalle || 'Sin comentarios',
-      servicios: serviciosSeleccionados  // Array de idServicio
+      servicios: serviciosSeleccionados
     };
-
-    
 
     try {
       const url = reservaEditar 
@@ -291,7 +329,6 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
         if (onReservaCreada) onReservaCreada();
         if (onCancelarEdicion) onCancelarEdicion();
       } else {
-        // Mostrar error detallado
         console.error("❌ Error del servidor:", result);
         window.alert('❌ Error: ' + (result.error || result.mensaje || 'Error desconocido'));
       }
@@ -300,6 +337,9 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
       window.alert('❌ Error al procesar la reserva');
     }
   };
+    
+
+    
 
   const limpiarFormulario = () => {
     setIdCliente('');

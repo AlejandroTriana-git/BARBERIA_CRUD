@@ -32,21 +32,37 @@ function ReservList({ actualizarLista, onEditarReserva }) {
   };
 
   const cancelarReserva = async (idReserva) => {
-    if (window.confirm('¿Estás seguro de eliminar esta reserva?')) {
-      try {
-        const response = await fetch(`http://localhost:3000/reservas/Cancelar/${idReserva}`, {
-          method: 'PUT'
-        });
+    const motivo = window.prompt("Indica el motivo de cancelación:");
 
-        if (response.ok) {
-          alert('✅ Reserva eliminada');
-          cargarReservas();
-        }
-      } catch (error) {
-        console.error('Error al eliminar:', error);
+    // Si el usuario presiona cancelar o deja vacío
+    if (motivo === null || motivo.trim() === "") {
+      alert("⚠️ Debes ingresar un motivo para cancelar la reserva.");
+      return;
+    }
+
+    // Confirmar después del motivo
+    const confirmar = window.confirm(
+      `¿Seguro quieres cancelar la reserva?\nMotivo: ${motivo}`
+    );
+
+    if (!confirmar) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/reservas/Cancelar/${idReserva}`, {
+        method: 'PUT',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo })
+      });
+
+      if (response.ok) {
+        alert('✅ Reserva cancelada');
+        cargarReservas();
       }
+    } catch (error) {
+      console.error('Error al cancelar:', error);
     }
   };
+
 
   const formatearFecha = (fecha) => {
     const date = new Date(fecha);
