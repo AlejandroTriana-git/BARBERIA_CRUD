@@ -502,7 +502,7 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
               fontWeight: 'bold'
             }}
           >
-            {reservaEditar ? '💾 Actualizar Reserva' : '✅ Crear Reserva'}
+            {reservaEditar ? 'Actualizar Reserva' : 'Crear Reserva'}
           </button>
 
 
