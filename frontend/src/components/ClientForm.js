@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from "react";
 
+
+
 function ClientForm({ clientToEdit, onSaveComplete }) {
   
   const [nombre, setNombre] = useState("");
@@ -25,8 +27,14 @@ function ClientForm({ clientToEdit, onSaveComplete }) {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // VALIDACIÓN DE TELÉFONO
+    if (!/^[0-9]+$/.test(telefono)) {
+      alert("¡En el campo teléfono solo se aceptan números!");
+      return; // Detener envío
+    }
+    
     setSaving(true);
-
     const payload = {
       nombre: nombre.trim(),
       correo: correo.trim(),
@@ -94,6 +102,7 @@ function ClientForm({ clientToEdit, onSaveComplete }) {
         placeholder="Teléfono"
         value={telefono}
         onChange={(e) => setTelefono(e.target.value)}
+        maxLength={10}
         required
       />
 
@@ -101,6 +110,24 @@ function ClientForm({ clientToEdit, onSaveComplete }) {
         <button type="submit" disabled={saving}>
           {saving ? (clientToEdit ? "Actualizando..." : "Guardando...") : (clientToEdit ? "Actualizar" : "Guardar")}
         </button>
+
+
+        {!clientToEdit && (
+          <button
+            type="button"
+            onClick={() => {
+              // cancelar edición: limpiar
+              setNombre("");
+              setCorreo("");
+              setTelefono("");
+              if (typeof onSaveComplete === "function") onSaveComplete();
+            }}
+            style={{ marginLeft: 8 }}
+            disabled={saving}
+          >
+            Limpiar
+          </button>
+        )}
 
         {clientToEdit && (
           <button

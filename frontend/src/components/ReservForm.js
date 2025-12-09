@@ -437,7 +437,7 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
             min={new Date().toISOString().split('T')[0]}
-            style={{ width: '100%', padding: '8px', fontSize: '14px' }}
+            style={{ width: '98%', padding: '8px', fontSize: '14px' }}
             required
           />
         </div>
@@ -483,7 +483,7 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
             value={detalle}
             onChange={(e) => setDetalle(e.target.value)}
             placeholder="Escribe algún detalle adicional..."
-            style={{ width: '100%', padding: '8px', fontSize: '14px', minHeight: '80px' }}
+            style={{ width: '99%', padding: '8px', fontSize: '14px', minHeight: '80px' }}
           />
         </div>
 
