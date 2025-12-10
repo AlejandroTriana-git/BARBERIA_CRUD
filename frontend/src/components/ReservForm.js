@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 
+//Apoyado con IA, especificamente en correcciones frente al consumo de las APIS para esta seccion y el hecho de evitar condiciones en las reservas.
+
 function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
   // Estados para los datos del formulario
   const [clientes, setClientes] = useState([]);
