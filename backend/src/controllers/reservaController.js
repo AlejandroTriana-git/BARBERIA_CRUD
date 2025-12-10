@@ -264,6 +264,10 @@ export const cancelarReserva = async (req, res) => {
 
     const reserva = rows[0];
 
+    
+
+    
+
     if (!reserva) {
       await connection.rollback();
       return res.status(404).json({ error: "Reserva no encontrada" });
@@ -274,6 +278,16 @@ export const cancelarReserva = async (req, res) => {
       return res.status(400).json({
         error: "La reserva ya está cancelada o completada",
       });
+    }
+    // VALIDACIÓN FUTURA: Verificar que falten más de 24 horas
+    const fechaReserva = new Date(reserva.fecha);
+    const ahora = new Date();
+    const horasRestantes = (fechaReserva - ahora) / (1000 * 60 * 60);
+    // 
+    if (horasRestantes < 24) {
+      return res.status(400).json({ 
+        error: "No se puede cancelar la reserva. Faltan menos de 24 horas." 
+    });
     }
 
     // 2. Actualizar estado

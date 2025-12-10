@@ -53,16 +53,21 @@ function ReservList({ actualizarLista, onEditarReserva }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ motivo })
       });
-
+      
+      const result = await response.json();
+      
       if (response.ok) {
-        alert('✅ Reserva cancelada');
+        alert('✅ Reserva cancelada exitosamente');
         cargarReservas();
+      } else {
+        // Aquí se captura el error del backend (incluyendo el de 24 horas)
+        alert('❌ ' + (result.error || result.mensaje || 'Error desconocido'));
       }
     } catch (error) {
       console.error('Error al cancelar:', error);
+      alert('❌ Error de conexión al intentar cancelar la reserva');
     }
   };
-
 
   const formatearFecha = (fecha) => {
     const date = new Date(fecha);

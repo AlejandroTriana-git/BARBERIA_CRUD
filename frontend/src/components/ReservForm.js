@@ -268,7 +268,7 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
 
     // Buscar el barbero seleccionado
     const barberoSeleccionado = barberos.find(b => b.idBarbero === parseInt(idBarbero));
-    const nombreBarbero = barberoSeleccionado ? (barberoSeleccionado.nombreBarberos) : 'Barbero';
+    const nombreBarbero = barberoSeleccionado ? (barberoSeleccionado.nombreBarbero) : 'Barbero';
 
     // Buscar los nombres de los servicios seleccionados
     const nombresServicios = serviciosDisponibles
@@ -281,7 +281,7 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
     // ============================================================================
     const mensaje = `¿Confirmar reserva ${nombreCliente}?
 
-  
+      
       Barbero: ${nombreBarbero}
       Fecha: ${fecha}
       Hora: ${hora}
