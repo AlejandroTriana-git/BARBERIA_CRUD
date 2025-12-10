@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 
 export const obtenerUsuarios = async (req, res) => {
-  const [rows] = await pool.query("SELECT * FROM cliente");
+  const [rows] = await pool.query("SELECT * FROM cliente WHERE activo = 1");
   res.json(rows);
 };
 
@@ -47,6 +47,6 @@ export const actualizarUsuario = async (req, res) => {
 
 export const eliminarUsuario = async (req, res) => {
   const { idCliente } = req.params;
-  await pool.query("DELETE FROM cliente WHERE idCliente = ?", [idCliente]);
+  await pool.query("UPDATE cliente SET activo = 0 WHERE idCliente = ?", [idCliente]);
   res.json({ message: "Cliente eliminado" });
 };
