@@ -22,7 +22,7 @@ app.use(cors({ origin: "http://localhost:3002" }));
 
 
 //Dejas las APIS
-app.use("/usuarios", usuariosRoutes);
+app.use("/clientes", usuariosRoutes);
 app.use("/barberos", barberoRoutes);
 app.use("/servicios", servicioRoutes);
 app.use("/reservas", reservaRoutes);
