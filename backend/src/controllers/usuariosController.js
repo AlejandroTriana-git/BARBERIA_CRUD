@@ -120,7 +120,8 @@ export const crearHashToken = async (req, res) => {
       );
 
       if (countRows[0].total >= MAX_TOKENS_PER_HOUR) {
-        // Respuesta genérica para no revelar información
+        // Respuesta genérica para no revelar información, aca alcanzo el rate limit
+        console.log("⚠️ Rate limit alcanzado (tokens por hora)");
         return res.status(200).json("Si el correo/teléfono existe, recibirás un código de verificación");
       }
 
@@ -129,7 +130,7 @@ export const crearHashToken = async (req, res) => {
       const [lastRows] = await pool.query(
         `SELECT expira, creacion FROM verificacionTokens 
         WHERE idCliente = ? AND canal = ? AND usado = 0
-        ORDER BY creado DESC LIMIT 1`,
+        ORDER BY creacion DESC LIMIT 1`,
         [idCliente, canal]
       );
       if (lastRows.length > 0 && new Date(lastRows[0].expira) > new Date()) {
@@ -144,6 +145,8 @@ export const crearHashToken = async (req, res) => {
 
       //Ahora si, luego de verificar si ya habia hecho envios antes, y el mas reciente halla o no expirado, se verifica si han pasado mas de los 180seg
       // si no es asi, se envia mensaje distractor.
+      // Generar el token aca
+
       const token = generateTokenHex(4);
       const tokenHash = hashToken(token, process.env.TOKEN_SECRET);
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -156,51 +159,55 @@ export const crearHashToken = async (req, res) => {
 
       
     // Transacción: marcar anteriores como usados (o expirados) y crear nuevo token
-   
-    try {
-      await connection.beginTransaction();
-      // invalidar anteriores no-usados para este usuario+canal
-      await connection.query(
-        `UPDATE verificacionTokens 
-         SET usado = 1 
-         WHERE idCliente = ? AND canal = ? AND usado = 0`,
-        [idCliente, canal]
-      );
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        // invalidar anteriores no-usados para este usuario+canal
+        await connection.query(
+          `UPDATE verificacionTokens 
+          SET usado = 1 
+          WHERE idCliente = ? AND canal = ? AND usado = 0`,
+          [idCliente, canal]
+        );
 
-      // insertar el nuevo token
-      await connection.query(
-        `INSERT INTO verificacionTokens (idCliente, tokenHash, expira, canal) 
-         VALUES (?, ?, ?, ?)`,
-        [idCliente, tokenHash, expiresAt, canal]
-      );
+        // insertar el nuevo token
+        await connection.query(
+          `INSERT INTO verificacionTokens (idCliente, tokenHash, expira, canal) 
+          VALUES (?, ?, ?, ?)`,
+          [idCliente, tokenHash, expiresAt, canal]
+        );
 
-      await connection.commit();
-    } catch (txErr) {
-        await connection.rollback();
-        throw txErr;
-    } finally {
-        connection.release();
+        await connection.commit();
+        console.log("✅ Token guardado en BD");
+        
+      } catch (txErr) {
+          await connection.rollback();
+          console.error("💥 Error en transacción:", txErr);
+          throw txErr;
+      } finally {
+          connection.release();
+      }
+
+      // En dev puedes loggear, en prod NO
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`Token for ${correo || telefono}: ${token}`);
+      } else {
+        // aquí enviar correo/SMS real
+        // sendEmail(...) etc
+      }
+
+      return res.status(200).json("Si el correo/teléfono existe, recibirás un código de verificación");
+      
+    }else{
+      return res.status(200).json("Si el correo/teléfono existe, recibirás un código de verificación");
     }
-
-    // En dev puedes loggear, en prod NO
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`Token for ${correo || telefono}: ${token}`);
-    } else {
-      // aquí enviar correo/SMS real
-      // sendEmail(...) etc
-    }
-
-    return res.status(200).json(genericMessage);
-    }catch (error) {
-      console.error("ERROR crearHashToken:", error);
-      return res.status(500).json({ error: "Error al crear tokens" });
-    }
+      
   }catch (error) {
     console.error("💥 ERROR en crearHashToken:", error); // 👈 Ver el error completo
     console.error("Stack trace:", error.stack);
     res.status(500).json({ error: "Error al crear tokens" });
   }
-};
+  };
 
 
 
