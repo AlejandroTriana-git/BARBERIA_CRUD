@@ -135,9 +135,11 @@ export const crearHashToken = async (req, res) => {
       );
       if (lastRows.length > 0 && new Date(lastRows[0].expira) > new Date()) {
         const secondsSinceCreated =
-          (Date.now() - new Date(lastRows[0].creado)) / 1000;
+          (Date.now() - new Date(lastRows[0].creacion)) / 1000;
+          console.log("Entra aca para verificar con 3 minutos");
 
         if (secondsSinceCreated < MIN_SECS_BETWEEN) {
+          console.log("p2 Entra aca para verificar con 3 minutos");
           return res.status(200).json("Si el correo/teléfono existe, recibirás un código de verificación");
         }
       }
@@ -209,62 +211,202 @@ export const crearHashToken = async (req, res) => {
   }
   };
 
-
-
 export const verificarToken = async (req, res) => {
+  let connection = null;
+
   try {
-    const { token, correo, telefono } = req.body; // El usuario envía el código que recibió
-    
-    if (!token) {
-      return res.status(400).json({ error: "Token requerido" });
-    }
-    
-    if (!correo && !telefono) {
-      return res.status(400).json({ error: "Debe proporcionar correo o telefono" });
+    console.log("🔍 Verificando token...");
+
+    const { token, identificador } = req.body;
+    if (!token || !identificador) {
+      return res.status(400).json({ error: "Datos requeridos" });
     }
 
-    // Primero obtenemos el idCliente
-    const [cliente] = await pool.query(
-      "SELECT idCliente FROM cliente WHERE correo = ? OR telefono = ?",
+    // Determinar correo o teléfono
+    let correo = null;
+    let telefono = null;
+    if (isEmail(identificador)) {
+      correo = identificador.toLowerCase();
+    } else if (isPhone(identificador)) {
+      telefono = normalizePhone(identificador);
+    } else {
+      return res.status(400).json({ error: "Formato inválido" });
+    }
+
+    const canal = correo ? "email" : "sms";
+
+    // Obtener idCliente (no confirmar existencia pública)
+    const [clienteRows] = await pool.query(
+      "SELECT idCliente FROM cliente WHERE correo = ? OR telefono = ? LIMIT 1",
       [correo, telefono]
     );
 
-    if (cliente.length === 0) {
-      return res.status(400).json({ error: "Código inválido o expirado" }); // Mismo mensaje para evitar ataques
-    }
-
-
-    const idCliente = cliente[0].idCliente;
-    
-    // Hasheamos el token que nos enviaron para compararlo
-    const tokenHash = hashToken(token, process.env.TOKEN_SECRET);
-
-    // Buscamos el token en la base de datos
-    const [rows] = await pool.query(
-      `SELECT idVerificacionTokens, usado FROM verificacionTokens 
-       WHERE idCliente = ? AND tokenHash = ? AND usado = 0 AND expira > NOW()
-       LIMIT 1`,
-      [idCliente, tokenHash]
-    );
-
-    if (rows.length === 0) {
+    if (clienteRows.length === 0) {
+      // Mensaje genérico para evitar enumeración
       return res.status(400).json({ error: "Código inválido o expirado" });
     }
+    const idCliente = clienteRows[0].idCliente;
 
-    // Marcamos como usado
-    await pool.query(
-      `UPDATE verificacionTokens SET usado = 1 WHERE id = ?`,
-      [rows[0].id]
+    // Parámetros de seguridad
+    const VENTANA_BLOQUEO_MINUTOS = 15;
+    const MAX_INTENTOS = 5;
+    const VENTANA_INTENTOS_MINUTOS = 15;
+
+    // Obtener conexión dedicada porque haremos transacción
+    connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // 1) desbloquear bloqueos vencidos
+      await connection.query(
+        `UPDATE intentosVerificacion 
+         SET bloqueado = 0 
+         WHERE idCliente = ? 
+           AND bloqueado = 1 
+           AND fecha < DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+        [idCliente, VENTANA_BLOQUEO_MINUTOS]
+      );
+
+      // 2) verificar si hay bloqueo activo (calcular minutos restantes en SQL) - FOR UPDATE para evitar races
+      const [bloqueoRows] = await connection.query(
+        `SELECT idIntentosVerificacion,
+                CEIL(GREATEST(TIMESTAMPDIFF(SECOND, NOW(), DATE_ADD(fecha, INTERVAL ? MINUTE)), 0)/60) AS minutosRestantes
+         FROM intentosVerificacion
+         WHERE idCliente = ? AND bloqueado = 1 AND fecha >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+         ORDER BY fecha DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [VENTANA_BLOQUEO_MINUTOS, idCliente, VENTANA_BLOQUEO_MINUTOS]
+      );
+
+      if (bloqueoRows.length > 0) {
+        const tiempoRestante = bloqueoRows[0].minutosRestantes;
+        await connection.rollback();
+        console.log(`🚫 Cliente ${idCliente} está bloqueado`);
+        return res.status(429).json({
+          error: `Cuenta temporalmente bloqueada. Intenta en ${tiempoRestante} minuto(s).`
+        });
+      }
+
+      // 3) contar intentos fallidos recientes (FOR UPDATE para consistencia)
+      const [intentosRows] = await connection.query(
+        `SELECT COUNT(*) AS total
+         FROM intentosVerificacion
+         WHERE idCliente = ? AND exitoso = 0 AND fecha >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+         FOR UPDATE`,
+        [idCliente, VENTANA_INTENTOS_MINUTOS]
+      );
+
+      const intentosFallidos = intentosRows[0].total;
+
+      // 4) si excede límite → insertar bloqueo y hacer commit
+      if (intentosFallidos >= MAX_INTENTOS) {
+        await connection.query(
+          `INSERT INTO intentosVerificacion (idCliente, exitoso, bloqueado, fecha)
+           VALUES (?, 0, 1, NOW())`,
+          [idCliente]
+        );
+
+        await connection.commit();
+        console.log(`⚠️ Cliente ${idCliente} alcanzó límite de intentos - BLOQUEANDO`);
+        return res.status(429).json({
+          error: `Demasiados intentos fallidos. Cuenta bloqueada por ${VENTANA_BLOQUEO_MINUTOS} minutos.`
+        });
+      }
+
+      // 5) validar token (seleccionar FOR UPDATE para bloquear la fila mientras la consumimos)
+      const tokenHash = hashToken(token, process.env.TOKEN_SECRET);
+      const [tokenRows] = await connection.query(
+        `SELECT idVerificacionTokens, usado, expira
+         FROM verificacionTokens
+         WHERE idCliente = ? AND tokenHash = ? AND canal = ? AND usado = 0 AND expira > NOW()
+         LIMIT 1
+         FOR UPDATE`,
+        [idCliente, tokenHash, canal]
+      );
+
+      if (tokenRows.length === 0) {
+        // Registrar intento fallido
+        await connection.query(
+          `INSERT INTO intentosVerificacion (idCliente, exitoso, fecha)
+           VALUES (?, 0, NOW())`,
+          [idCliente]
+        );
+
+        // calcular intentos restantes (sin necesidad de nueva query: intentosFallidos + 1)
+        const intentosActuales = intentosFallidos + 1;
+        const intentosRestantes = Math.max(0, MAX_INTENTOS - intentosActuales);
+
+        await connection.commit(); // commit cambios (registro del intento)
+        console.log(`❌ Token inválido para cliente ${idCliente}`);
+        if (intentosRestantes > 0) {
+          return res.status(400).json({
+            error: `Código inválido o expirado. Te quedan ${intentosRestantes} intento(s).`
+          });
+        } else {
+          return res.status(400).json({ error: "Código inválido o expirado." });
+        }
+      }
+
+      // 6) token válido → marcar usado e invalidar otros tokens del canal
+      const tokenId = tokenRows[0].idVerificacionTokens;
+      await connection.query(
+        `UPDATE verificacionTokens SET usado = 1 WHERE idVerificacionTokens = ?`,
+        [tokenId]
+      );
+      await connection.query(
+        `UPDATE verificacionTokens
+         SET usado = 1
+         WHERE idCliente = ? AND canal = ? AND usado = 0 AND idVerificacionTokens != ?`,
+        [idCliente, canal, tokenId]
+      );
+
+      // registrar intento exitoso
+      await connection.query(
+        `INSERT INTO intentosVerificacion (idCliente, exitoso, fecha)
+         VALUES (?, 1, NOW())`,
+        [idCliente]
+      );
+
+      // limpieza de intentos antiguos SOLO de este cliente (evitar borrar todo)
+      await connection.query(
+        `DELETE FROM intentosVerificacion
+         WHERE idCliente = ? AND fecha < DATE_SUB(NOW(), INTERVAL 1 DAY)`,
+        [idCliente]
+      );
+
+      await connection.commit();
+      console.log(`✅ Verificación exitosa - Cliente ${idCliente}`);
+    } catch (txErr) {
+      if (connection) {
+        try { await connection.rollback(); } catch (e) { console.error("Rollback falló:", e); }
+      }
+      throw txErr;
+    } finally {
+      if (connection) connection.release();
+      connection = null;
+    }
+
+    // 7) Obtener datos de usuario y responder
+    const [userData] = await pool.query(
+      "SELECT idCliente, nombre, correo FROM cliente WHERE idCliente = ?",
+      [idCliente]
     );
 
-    res.status(200).json({ 
-      message: "Token verificado exitosamente",
-      idCliente 
+    return res.status(200).json({
+      message: "Verificación exitosa",
+      usuario: userData[0]
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error al verificar token" });
+    console.error("💥 ERROR en verificarToken:", error);
+    // asegúrate de no exponer errores internos al cliente
+    return res.status(500).json({ error: "Error al verificar código" });
+  } finally {
+    // guard para liberar si algo falló antes del finally interno
+    if (connection) {
+      try { connection.release(); } catch (e) { /* no-op */ }
+    }
   }
 };
 
