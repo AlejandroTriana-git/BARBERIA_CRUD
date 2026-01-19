@@ -1,6 +1,9 @@
 import pool from "../config/db.js";
 import crypto from "crypto";
 
+//A futuro borrar las respuestas puestas en consola
+
+
 
 //Para validar si es numero de telefono o correo electronico
 const normalizePhone = (value) =>
@@ -45,14 +48,19 @@ export const crearUsuario = async (req, res) => {
       return res.status(400).json({error : "Nombre, correo y telefono son obligatorios"});
     }
 
-    const [existe] = await pool.query(
-      "SELECT idCliente FROM cliente WHERE correo = ? OR telefono = ?", 
-      [correo, 
-      telefono]);
+    const [existe_correo] = await pool.query(
+      "SELECT idCliente FROM cliente WHERE correo = ? ", 
+      [correo]);
+
+    const [existe_telefono] = await pool.query(
+      "SELECT idCliente FROM cliente WHERE telefono = ? ", 
+      [telefono]);
     
-    if (existe.length > 0){
-      return res.status(409).json({error: "Correo o telefono ya esta registrado"});
-    }
+    if (existe_correo.length > 0){
+      return res.status(409).json({error: "El correo ya esta registrado"});
+    }else if(existe_telefono.length > 0){
+      return res.status(409).json({error: "El numero de telefono ya esta registrado"});
+    };
 
     
     await pool.query("INSERT INTO cliente (nombre, correo, telefono) VALUES (?, ?, ?)", [
@@ -237,7 +245,7 @@ export const verificarToken = async (req, res) => {
 
     // Obtener idCliente (no confirmar existencia pública)
     const [clienteRows] = await pool.query(
-      "SELECT idCliente FROM cliente WHERE correo = ? OR telefono = ? LIMIT 1",
+      "SELECT idCliente FROM cliente WHERE correo = ? OR telefono = ? LIMIT 1 FOR UPDATE",
       [correo, telefono]
     );
 
@@ -252,7 +260,7 @@ export const verificarToken = async (req, res) => {
     const MAX_INTENTOS = 5;
     const VENTANA_INTENTOS_MINUTOS = 15;
 
-    // Obtener conexión dedicada porque haremos transacción
+    // Obtener conexión dedicada porque se hacen transacciones
     connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
@@ -298,7 +306,7 @@ export const verificarToken = async (req, res) => {
       );
 
       const intentosFallidos = intentosRows[0].total;
-
+      
       // 4) si excede límite → insertar bloqueo y hacer commit
       if (intentosFallidos >= MAX_INTENTOS) {
         await connection.query(
@@ -411,11 +419,26 @@ export const verificarToken = async (req, res) => {
 };
 
 
-//Falta validadr ahora que no se repita
+
 export const actualizarUsuario = async (req, res) => {
   try {
     const { idCliente } = req.params;
     const { nombre, correo, telefono } = req.body;
+
+
+    const [existe_correo] = await pool.query(
+      "SELECT idCliente FROM cliente WHERE correo = ? ", 
+      [correo]);
+
+    const [existe_telefono] = await pool.query(
+      "SELECT idCliente FROM cliente WHERE telefono = ? ", 
+      [telefono]);
+    
+    if (existe_correo.length > 0){
+      return res.status(409).json({error: "Ese correo ya esta registrado en otro usuario"});
+    }else if(existe_telefono.length > 0){
+      return res.status(409).json({error: "Ese numero de telefono ya esta registrado en otro usuario"});
+    };
 
     const [result] = await pool.query(
       "UPDATE cliente SET nombre = ?, correo = ?, telefono = ? WHERE idCliente = ?",
@@ -434,12 +457,11 @@ export const actualizarUsuario = async (req, res) => {
 };
 
 
-export const eliminarUsuario = async (req, res) => {
+export const desactivarUsuario = async (req, res) => {
   const { idCliente } = req.params;
   await pool.query("UPDATE cliente SET activo = 0 WHERE idCliente = ?", [idCliente]);
   res.json({ message: "Cliente eliminado" });
 };
 
 
-//Verificar todas las validaciones de errores.
-//Asi mismo crear ruta que permita ingresar a la plataforma.
+

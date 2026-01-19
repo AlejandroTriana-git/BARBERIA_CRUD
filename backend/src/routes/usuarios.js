@@ -3,7 +3,7 @@ import {
   obtenerUsuarios,
   crearUsuario,
   actualizarUsuario,
-  eliminarUsuario,
+  desactivarUsuario,
   crearHashToken,
   verificarToken
 } from "../controllers/usuariosController.js";
@@ -20,6 +20,6 @@ router.post("/verificar", verificarToken)
 
 
 router.put("/:idCliente", actualizarUsuario);
-router.delete("/:idCliente", eliminarUsuario);
+router.delete("/:idCliente", desactivarUsuario);
 
 export default router;
