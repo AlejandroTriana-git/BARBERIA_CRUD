@@ -16,7 +16,7 @@ router.post("/", crearUsuario);
 //Proceso hash (verificación)
 
 router.post("/hash", crearHashToken);
-router.post("/verificar", verificarToken)
+
 
 
 router.put("/:idCliente", actualizarUsuario);

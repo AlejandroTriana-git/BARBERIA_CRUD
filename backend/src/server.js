@@ -3,11 +3,11 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import usuariosRoutes from "./routes/usuarios.js";
-
 import barberoRoutes from "./routes/barberos.js";
 import servicioRoutes from "./routes/servicios.js";
 import reservaRoutes from "./routes/reservas.js";
 import disponibilidadRoutes from "./routes/disponibilidad.js"
+import authRoutes from "./routes/auth.js";
 
 dotenv.config();
 
@@ -27,7 +27,7 @@ app.use("/barberos", barberoRoutes);
 app.use("/servicios", servicioRoutes);
 app.use("/reservas", reservaRoutes);
 app.use("/disponibilidad", disponibilidadRoutes);
-
+app.use("/auth", authRoutes);
 
 
 app.listen(PORT, () => {
