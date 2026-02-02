@@ -4,8 +4,7 @@ import {
   crearUsuario,
   actualizarUsuario,
   desactivarUsuario,
-  crearHashToken,
-  verificarToken
+  crearHashToken
 } from "../controllers/usuariosController.js";
 
 const router = Router();

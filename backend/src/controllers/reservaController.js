@@ -3,8 +3,26 @@ import { validarDisponibilidadReserva} from "./disponibilidadController.js"
 
 
 
+//Para traer las reservas segun un filtro, se usa query params, donde se envia por sql, va despues de ?
 export const obtenerReservas = async (req, res) => {
   try {
+    const { idCliente } = req.usuario;
+    const { estado } = req.query;
+
+    let filtroEstado = "";
+
+    if (estado === "pendiente") {
+      filtroEstado = "AND r.estado = 1 AND r.fecha >= NOW()";
+    }
+
+    if (estado === "cancelada") {
+      filtroEstado = "AND r.estado = 0";
+    }
+
+    if (estado === "pasadas") {
+      filtroEstado = "AND r.fecha < NOW()";
+    }
+
     const [rows] = await pool.query(
       `SELECT 
         r.idReserva,
@@ -20,16 +38,17 @@ export const obtenerReservas = async (req, res) => {
       FROM reserva r 
       INNER JOIN cliente c ON r.idCliente = c.idCliente
       INNER JOIN barbero b ON r.idBarbero = b.idBarbero
-      WHERE estado = 1
-      ORDER BY r.fecha DESC`
-    );
+      WHERE estado = 1 AND r.idCliente = ?
+      ${filtroEstado}
+      ORDER BY r.fecha DESC`, 
+      [idCliente]);
     
     res.json(rows);
   } catch (error) {
-    console.error("Error al obtener reservas:", error.message);
     res.status(500).json({ error: "Error al obtener reservas" });
   }
 };
+
 
 /**
  * ============================================================================

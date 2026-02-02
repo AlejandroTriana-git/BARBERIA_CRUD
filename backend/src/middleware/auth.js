@@ -1,19 +1,27 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "tu_clave_secreta_corta";
 
-export const authenticate = (req, res, next) => {
-  const header = req.headers.authorization;
-  if (!header) return res.status(401).json({ error: "Authorization header requerido" });
 
-  const [scheme, token] = header.split(" ");
-  if (scheme !== "Bearer" || !token) return res.status(401).json({ error: "Formato Bearer token inválido" });
-
+export const verificarToken = (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = { id: decoded.id, rol: decoded.rol };
-    return next();
-  } catch (err) {
-    return res.status(401).json({ error: "Token inválido o expirado" });
+    console.log("HEADERS:", req.headers.authorization);
+
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return res.status(401).json({ error: "Token no enviado" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    console.log("TOKEN RECIBIDO:", token);
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    req.usuario = decoded;
+    next();
+  } catch (error) {
+    console.error("ERROR JWT:", error.message);
+    return res.status(401).json({ error: "Token no válido o expirado" });
   }
 };
+

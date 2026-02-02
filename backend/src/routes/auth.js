@@ -1,5 +1,5 @@
 import {Router} from "express";
-import { verificarToken } from "../controllers/authController";
+import { verificarToken } from "../controllers/authController.js";
 
 const router = Router();
 
