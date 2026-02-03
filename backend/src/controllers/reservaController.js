@@ -2,13 +2,23 @@ import pool from "../config/db.js";
 import { validarDisponibilidadReserva} from "./disponibilidadController.js"
 
 
+/* 
+
+TENER EN CUENTA LOS SIGUIENTES ESTADOS:
+0: cancelada
+1: Pendiente
+2: No asistio
+3: Realizado
+ */
+
 
 //Para traer las reservas segun un filtro, se usa query params, donde se envia por sql, va despues de ?
 export const obtenerReservas = async (req, res) => {
   try {
-    const { idCliente } = req.usuario;
+    const idCliente = req.usuario.id;
     const { estado } = req.query;
-
+    console.log(idCliente);
+    
     let filtroEstado = "";
 
     if (estado === "pendiente") {
@@ -19,8 +29,12 @@ export const obtenerReservas = async (req, res) => {
       filtroEstado = "AND r.estado = 0";
     }
 
-    if (estado === "pasadas") {
-      filtroEstado = "AND r.fecha < NOW()";
+    if (estado === "realizadas") {
+      filtroEstado = "AND r.estado = 3";
+    }
+
+    if (estado == "sin asistir"){
+      filtroEstado = "AND r.estado = 2";
     }
 
     const [rows] = await pool.query(
@@ -38,7 +52,7 @@ export const obtenerReservas = async (req, res) => {
       FROM reserva r 
       INNER JOIN cliente c ON r.idCliente = c.idCliente
       INNER JOIN barbero b ON r.idBarbero = b.idBarbero
-      WHERE estado = 1 AND r.idCliente = ?
+      WHERE r.idCliente = ?
       ${filtroEstado}
       ORDER BY r.fecha DESC`, 
       [idCliente]);
