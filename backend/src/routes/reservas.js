@@ -7,23 +7,23 @@ import {
   cancelarReserva 
 } from "../controllers/reservaController.js";
 
-import { verificarToken } from "../middleware/auth.js";
+import { verificarTokenJWT } from "../middleware/auth.js";
 
 const router = Router();
 
 // GET /reservas - Obtener todas las reservas
-router.get("/", verificarToken, obtenerReservas);
+router.get("/", verificarTokenJWT, obtenerReservas);
 
 // GET /reservas/:idReserva - Obtener una reserva específica con detalles
-router.get("/:idReserva", verificarToken, obtenerReservaPorId);
+router.get("/:idReserva", verificarTokenJWT, obtenerReservaPorId);
 
 // POST /reservas - Crear una nueva reserva
-router.post("/", verificarToken, crearReserva);
+router.post("/", verificarTokenJWT, crearReserva);
 
 // PUT /reservas/:idReserva - Actualizar una reserva
-router.put("/:idReserva", verificarToken, actualizarReserva);
+router.put("/:idReserva", verificarTokenJWT, actualizarReserva);
 
 // PUT /reservas/:idReserva - Cancelar una reserva
-router.put("/Cancelar/:idReserva", verificarToken, cancelarReserva);
+router.put("/Cancelar/:idReserva", verificarTokenJWT, cancelarReserva);
 
 export default router;

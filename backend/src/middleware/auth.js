@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 
 
 
-export const verificarToken = (req, res, next) => {
+export const verificarTokenJWT = (req, res, next) => {
   try {
     console.log("HEADERS:", req.headers.authorization);
 
