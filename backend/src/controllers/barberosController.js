@@ -1,9 +1,20 @@
 import pool from "../config/db.js";
+import bcrypt from "bcrypt";
+
+
 
 // Obtener todos los barberos
 export const obtenerBarberos = async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM barbero");
+    const [rows] = await pool.query(
+      `SELECT 
+        b.idBarbero,
+        b.nombreBarbero,
+        b.telefonoBarbero,
+        u.correoUsuario
+        FROM barbero b
+        INNER JOIN usuario u 
+        ON b.idUsuario = u.idUsuario`);
     res.json(rows);
   } catch (error) {
     console.error("Error al obtener barberos:", error.message);
@@ -54,5 +65,243 @@ export const obtenerBarberoPorId = async (req, res) => {
   } catch (error) {
     console.error("Error al obtener barbero:", error.message);
     res.status(500).json({ error: "Error al obtener barbero" });
+  }
+};
+
+
+export const crearBarbero = async (req, res) => {
+  const connection = await pool.getConnection();
+
+  try {
+
+    const { nombreBarbero, telefonoBarbero, correoUsuario } = req.body;
+
+    if (!nombreBarbero || !telefonoBarbero || !correoUsuario) {
+      return res.status(400).json({
+        message: "Todos los campos son obligatorios"
+      });
+    }
+
+    // verificar si el correo ya existe
+    const [correoExiste] = await connection.query(
+      "SELECT idUsuario FROM usuario WHERE correoUsuario = ?",
+      [correoUsuario]
+    );
+
+    if (correoExiste.length > 0) {
+      return res.status(400).json({
+        message: "El correo ya está registrado"
+      });
+    }
+
+    // contraseña temporal
+    const contraseñaTemporal = Math.random().toString(36).slice(-8);
+
+    const contraseñaHash = await bcrypt.hash(contraseñaTemporal, 10);
+
+    await connection.beginTransaction();
+
+    // crear usuario (rol barbero = 2 )
+    const [usuarioResult] = await connection.query(
+      `INSERT INTO usuario 
+      (correoUsuario, contraseñaUsuario, idRol)
+      VALUES (?, ?, ?)`,
+      [correoUsuario, contraseñaHash, 2]
+    );//Mas adelante poner que cambiar contraeña si es su primera vez, o simplemente con fechaModificacion==Null y rol
+
+    const idUsuario = usuarioResult.insertId;
+
+    // crear barbero
+    await connection.query(
+      `INSERT INTO barbero 
+      (idUsuario, nombreBarbero, telefonoBarbero)
+      VALUES (?, ?, ?)`,
+      [idUsuario, nombreBarbero, telefonoBarbero]
+    );
+
+    await connection.commit();
+
+    res.status(201).json({
+      message: "Barbero creado correctamente",
+      contraseñaTemporal
+    });
+
+  } catch (error) {
+
+    await connection.rollback();
+
+    console.error("Error al crear barbero:", error.message);
+
+    res.status(500).json({
+      error: "Error al crear barbero"
+    });
+
+  } finally {
+
+    connection.release();
+
+  }
+};
+
+
+export const actualizarBarbero = async (req, res) => {
+  try {
+
+    const { idBarbero } = req.params;
+    const { nombreBarbero, telefonoBarbero } = req.body;
+
+    const [barberoExiste] = await pool.query(
+      "SELECT idBarbero FROM barbero WHERE idBarbero = ?",
+      [idBarbero]
+    );
+
+    if (barberoExiste.length === 0) {
+      return res.status(404).json({
+        message: "Barbero no encontrado"
+      });
+    }
+
+    await pool.query(
+      `UPDATE barbero 
+       SET nombreBarbero = ?, telefonoBarbero = ?
+       WHERE idBarbero = ?`,
+      [nombreBarbero, telefonoBarbero, idBarbero]
+    );
+
+    res.json({
+      message: "Barbero actualizado correctamente"
+    });
+
+  } catch (error) {
+
+    console.error("Error al actualizar barbero:", error.message);
+
+    res.status(500).json({
+      error: "Error al actualizar barbero"
+    });
+
+  }
+};
+
+
+//Aca me faltan: 
+// asignarServicioBarbero
+// eliminarServicioBarbero
+
+
+/**
+ * ============================================================================
+ * OBTENER horarios configurados de un barbero
+ * ============================================================================
+ */
+export const obtenerHorariosBarbero = async (req, res) => {
+  try {
+    const { idBarbero } = req.params;
+    
+    if (!idBarbero) {
+      return res.status(400).json({ error: "Falta idBarbero" });
+    }
+
+    // Obtener horarios ordenados: excepciones primero, luego semanales
+    const [horarios] = await pool.query(
+      `SELECT * 
+       FROM barbero_horario 
+       WHERE idBarbero = ? 
+       ORDER BY 
+         (fechaEspecifica IS NOT NULL) DESC,
+         fechaEspecifica ASC,
+         diaSemana ASC`,
+      [idBarbero]
+    );
+    
+    res.json(horarios);
+  } catch (error) {
+    console.error("Error al obtener horarios del barbero:", error.message);
+    res.status(500).json({ error: "Error al obtener horarios" });
+  }
+};
+
+/**
+ * ============================================================================
+ * CREAR o ACTUALIZAR horario de un barbero
+ * ============================================================================
+ */
+export const gestionarHorarioBarbero = async (req, res) => {
+  try {
+    const { 
+      idBarbero, 
+      diaSemana = null, 
+      fechaEspecifica = null, 
+      horaInicio, 
+      horaFin,
+      activo = 1 
+    } = req.body;
+    
+    // Validaciones
+    if (!idBarbero || !horaInicio || !horaFin) {
+      return res.status(400).json({ 
+        error: "Faltan datos requeridos: idBarbero, horaInicio, horaFin" 
+      });
+    }
+    
+    // No pueden estar ambos definidos
+    if (fechaEspecifica && diaSemana) {
+      return res.status(400).json({ 
+        error: "No se puede configurar diaSemana y fechaEspecifica simultáneamente" 
+      });
+    }
+    
+    // Al menos uno debe estar definido
+    if (!fechaEspecifica && !diaSemana) {
+      return res.status(400).json({ 
+        error: "Debe especificar diaSemana o fechaEspecifica" 
+      });
+    }
+
+    // Insertar o actualizar
+    await pool.query(
+      `INSERT INTO barbero_horario 
+         (idBarbero, diaSemana, fechaEspecifica, horaInicio, horaFin, activo) 
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE 
+         horaInicio = VALUES(horaInicio), 
+         horaFin = VALUES(horaFin),
+         activo = VALUES(activo)`,
+      [idBarbero, diaSemana, fechaEspecifica, horaInicio, horaFin, activo]
+    );
+    
+    res.json({ message: "Horario configurado exitosamente" });
+  } catch (error) {
+    console.error("Error al configurar horario:", error.message);
+    res.status(500).json({ error: "Error al configurar horario" });
+  }
+};
+
+/**
+ * ============================================================================
+ * ELIMINAR horario de un barbero
+ * ============================================================================
+ */
+export const eliminarHorarioBarbero = async (req, res) => {
+  try {
+    const { idHorario } = req.params;
+    
+    if (!idHorario) {
+      return res.status(400).json({ error: "Falta idHorario" });
+    }
+    
+    const [result] = await pool.query(
+      "DELETE FROM barbero_horario WHERE idBarbero_Horario = ?",
+      [idHorario]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Horario no encontrado" });
+    }
+    
+    res.json({ message: "Horario eliminado exitosamente" });
+  } catch (error) {
+    console.error("Error al eliminar horario:", error.message);
+    res.status(500).json({ error: "Error al eliminar horario" });
   }
 };

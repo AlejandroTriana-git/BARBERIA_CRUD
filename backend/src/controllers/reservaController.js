@@ -144,7 +144,9 @@ export const crearReserva = async (req, res) => {
   const connection = await pool.getConnection();
   
   try {
-    const { idCliente, idBarbero, fecha, detalle, servicios } = req.body;
+
+    const idCliente = req.usuario.idPerfil;
+    const { idBarbero, fecha, detalle, servicios } = req.body;
     
     // ========================================================================
     // VALIDACIÓN 1: Datos requeridos
@@ -349,6 +351,61 @@ export const cancelarReserva = async (req, res) => {
     connection.release();
   }
 };
+
+
+export const agendaBarbero = async (req, res) => {
+  try {
+
+    const { idUsuario } = req.usuario;
+
+    
+    const [barbero] = await pool.query(
+      "SELECT idBarbero FROM barbero WHERE idUsuario = ?",
+      [idUsuario]
+    );
+
+    if (barbero.length === 0) {
+      return res.status(404).json({
+        message: "Barbero no encontrado"
+      });
+    }
+
+    const idBarbero = barbero[0].idBarbero;
+
+ 
+    const [agenda] = await pool.query(
+      `SELECT 
+          r.idReserva,
+          c.nombreCliente,
+          r.fechaReserva,
+          r.detalleReserva,
+          GROUP_CONCAT(s.nombreServicio SEPARATOR ', ') AS servicios,
+          SUM(s.duracion) AS duracionTotal,
+          SUM(s.costo) AS costoTotal
+      FROM reserva r
+      JOIN reserva_servicio rs ON rs.idReserva = r.idReserva
+      JOIN cliente c ON r.idCliente = c.idCliente
+      JOIN servicio s ON rs.idServicio = s.idServicio
+      WHERE r.idBarbero = ?
+      GROUP BY r.idReserva
+      ORDER BY r.fechaReserva`,
+      [idBarbero]
+    );
+
+    res.json(agenda);
+
+  } catch (error) {
+
+    console.error("Error al obtener agenda:", error.message);
+
+    res.status(500).json({
+      error: "Error al obtener agenda"
+    });
+
+  }
+};
+
+
 
 
 

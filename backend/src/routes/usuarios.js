@@ -7,6 +7,11 @@ import {
   crearHashToken
 } from "../controllers/usuariosController.js";
 
+
+import { verificarTokenJWT } from "../middleware/auth.js";
+
+
+//poner la verificacionJWT en contraseñaCmabiar y cambiar correo
 const router = Router();
 
 router.get("/", obtenerUsuarios);
