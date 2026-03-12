@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 
 
 //Obtener la info del cleinte
+//PERMISO: CLIENTE
 export const obtenerPerfilCliente = async (req, res) => {
   try {
 
@@ -39,6 +40,7 @@ export const obtenerPerfilCliente = async (req, res) => {
 };
 
 //Aca puede enviar a modificar tanto el nombre como telefono, o solo uno.
+//PERMISO: CLIENTE
 export const actualizarPerfilCliente = async (req, res) => {
   try {
 

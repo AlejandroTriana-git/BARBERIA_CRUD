@@ -4,6 +4,8 @@ import bcrypt from "bcrypt";
 
 
 // Obtener todos los barberos
+
+//PERMISO: ADMIN
 export const obtenerBarberos = async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -23,6 +25,7 @@ export const obtenerBarberos = async (req, res) => {
 };
 
 // Obtener los servicios que ofrece un barbero específico
+//PERMISO: CLIENTES, ADMIN
 export const obtenerServiciosPorBarbero = async (req, res) => {
   try {
     const { idBarbero } = req.params;
@@ -49,6 +52,7 @@ export const obtenerServiciosPorBarbero = async (req, res) => {
 };
 
 // Obtener un barbero específico
+//PERMISO: NO USAR AUN
 export const obtenerBarberoPorId = async (req, res) => {
   try {
     const { idBarbero } = req.params;
@@ -68,7 +72,7 @@ export const obtenerBarberoPorId = async (req, res) => {
   }
 };
 
-
+//PERMISO: ADMIN
 export const crearBarbero = async (req, res) => {
   const connection = await pool.getConnection();
 
@@ -143,7 +147,7 @@ export const crearBarbero = async (req, res) => {
   }
 };
 
-
+//PERMISO:ADMIN
 export const actualizarBarbero = async (req, res) => {
   try {
 
@@ -184,16 +188,86 @@ export const actualizarBarbero = async (req, res) => {
 };
 
 
-//Aca me faltan: 
-// asignarServicioBarbero
-// eliminarServicioBarbero
+
+// asignarServicioBarbero, aca manejo con un for, si el fronted llega a enviar muchos servicios
+
+//PERMISO:ADMIN
+export const asignarServiciosBarbero = async (req, res) => {
+  try {
+
+    const { idBarbero, servicios } = req.body;
+
+    if (!idBarbero || !Array.isArray(servicios) || servicios.length === 0) {
+      return res.status(400).json({
+        message: "Datos inválidos"
+      });
+    }
+
+    for (const idServicio of servicios) {
+      await pool.query(
+        "INSERT INTO barbero_servicio (idBarbero, idServicio) VALUES (?, ?)",
+        [idBarbero, idServicio]
+      );
+    }
+
+    res.status(201).json({
+      message: "Servicios asignados correctamente"
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: "Error al asignar servicios"
+    });
+
+  }
+};
 
 
+
+// eliminarServicioBarbero, tambien se maneja for, por si llega a enviar varios.
+//PERMISO:ADMIN
+export const eliminarServicioBarbero = async (req, res) => {
+  try {
+
+    const { idBarbero, servicios } = req.body;
+
+    if (!idBarbero || !Array.isArray(servicios) || servicios.length === 0) {
+      return res.status(400).json({
+        message: "Datos inválidos"
+      });
+    }
+
+    for (const idServicio of servicios) {
+      await pool.query(
+        "DELETE FROM barbero_servicio WHERE idBarbero = ? AND idServicio = ?",
+        [idBarbero, idServicio]
+      );
+    }
+
+    res.status(200).json({
+      message: "Servicios eliminados correctamente"
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: "Error al eliminar servicios"
+    });
+
+  }
+};
 /**
  * ============================================================================
  * OBTENER horarios configurados de un barbero
  * ============================================================================
  */
+
+//PERMISO:ADMIN
 export const obtenerHorariosBarbero = async (req, res) => {
   try {
     const { idBarbero } = req.params;
@@ -226,6 +300,8 @@ export const obtenerHorariosBarbero = async (req, res) => {
  * CREAR o ACTUALIZAR horario de un barbero
  * ============================================================================
  */
+
+//PERMISO:ADMIN
 export const gestionarHorarioBarbero = async (req, res) => {
   try {
     const { 
@@ -282,6 +358,8 @@ export const gestionarHorarioBarbero = async (req, res) => {
  * ELIMINAR horario de un barbero
  * ============================================================================
  */
+
+//PERMISO:ADMIN
 export const eliminarHorarioBarbero = async (req, res) => {
   try {
     const { idHorario } = req.params;

@@ -25,3 +25,17 @@ export const verificarTokenJWT = (req, res, next) => {
   }
 };
 
+export const verificarRol = (rolPermitido) => {
+  return (req, res, next) => {
+
+    const { idRol } = req.usuario;
+
+    if (idRol !== rolPermitido) {
+      return res.status(403).json({
+        error: "No tienes permisos para esta acción"
+      });
+    }
+
+    next();
+  };
+};

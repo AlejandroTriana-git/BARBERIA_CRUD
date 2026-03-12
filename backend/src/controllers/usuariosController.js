@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
 
-
+//PERMISO: ADMIN
 //Seccion para obtener a los usuarios y crear a los usuarios.
 export const obtenerUsuarios = async (req, res) => {
   try{
@@ -26,7 +26,7 @@ export const obtenerUsuarios = async (req, res) => {
 };
 
 
-
+//PERMISO: TODOS
 export const actualizarContraseña = async (req, res) => {
   try {
 
@@ -76,7 +76,7 @@ export const actualizarContraseña = async (req, res) => {
 
 
 
-
+//PERMISO: TODOS
 export const actualizarCorreo = async (req, res) => {
   try {
 

@@ -9,6 +9,7 @@ const JWT_EXPIRES_IN = "8h"; // ajusta según necesidad
 
 //Este es el encargado de autenticar a un usuario, el ingreso a la plataforma, incluyendo el JWT
 
+//PERMISO: ADMIN, BARBERO, CLEINTE
 export const verificarAuth = async (req, res) => {
   let connection = null;
 
@@ -204,6 +205,8 @@ export const verificarAuth = async (req, res) => {
 
 
 //El registro unicamente de los cleintes
+
+//PERMISO: CLIENTE
 export const registrarCliente = async (req, res) => {
   const connection = await pool.getConnection();
 

@@ -6,13 +6,12 @@ import { validarDisponibilidadReserva} from "./disponibilidadController.js"
 
 TENER EN CUENTA LOS SIGUIENTES ESTADOS:
 0: cancelada
-1: Pendiente
-2: No asistio
-3: Realizado
+1:  No asistio
+2:  Realizado
  */
 
 //CLIENTES CON RESERVAS
-
+//PERMISO: CLIENTE
 //Para traer las reservas segun un filtro, se usa query params, donde se envia por sql, va despues de ?
 export const obtenerReservas = async (req, res) => {
   try {
@@ -70,6 +69,7 @@ export const obtenerReservas = async (req, res) => {
  * OBTENER UNA RESERVA POR ID
  * ============================================================================
  */
+// PERMISO:  CLIENTE
 export const obtenerReservaPorId = async (req, res) => {
   try {
     const { idReserva } = req.params;
@@ -140,6 +140,7 @@ export const obtenerReservaPorId = async (req, res) => {
  * CREAR UNA NUEVA RESERVA (CON VALIDACIÓN DE DISPONIBILIDAD)
  * ============================================================================
  */
+//PERMISO: CLIENTE
 export const crearReserva = async (req, res) => {
   const connection = await pool.getConnection();
   
@@ -227,6 +228,7 @@ export const crearReserva = async (req, res) => {
 
 /* Actualizar una reserva
  */
+//PERMISO: CLIENTE
 export const actualizarReserva = async (req, res) => {
   const connection = await pool.getConnection();
   
@@ -280,6 +282,8 @@ export const actualizarReserva = async (req, res) => {
 // *===========================================================================
 // *Cancelar una reserva, aunque realmente es colocarla en estado = 0 para tener el registro, mas adelnate incluir una tabla para reservasCanceladas 
 // *============================================================================
+
+//PERMISO: CLIENTE
 export const cancelarReserva = async (req, res) => {
   const connection = await pool.getConnection();
 
@@ -352,7 +356,7 @@ export const cancelarReserva = async (req, res) => {
   }
 };
 
-
+//PERMISO: BARBERO
 export const agendaBarbero = async (req, res) => {
   try {
 

@@ -1,5 +1,10 @@
 import pool from "../config/db.js";
 
+
+
+//PERMISO: ADMIN
+
+
 // Obtener todos los servicios
 export const obtenerServicios = async (req, res) => {
   try {
@@ -37,6 +42,7 @@ export const obtenerServicioPorId = async (req, res) => {
 };
 
 
+//Los siguientes dos los usa el admin para cuando necesite cambiar algo en la logica de servicios
 
 export const crearServicio = async (req, res) => {
   try {

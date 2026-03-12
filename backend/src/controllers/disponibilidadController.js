@@ -7,6 +7,8 @@ import pool from "../config/db.js";
  * Esta función es la que consume el FRONTEND para mostrar los horarios
  * disponibles en el calendario/selector de horas
  */
+
+//PERMISO:ADMIN, CLIENTE
 export const obtenerHorariosDisponibles = async (req, res) => {
   try {
     const { idBarbero, fecha, servicios } = req.query;
@@ -208,6 +210,8 @@ export const obtenerHorariosDisponibles = async (req, res) => {
  * Esta función NO es para mostrar horarios, sino para VALIDAR una reserva
  * antes de crearla o actualizarla en la base de datos
  */
+
+//PERMISO:ADMIN, CLIENTE
 export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servicios, idReservaExcluir = null) => {
   try {
     // Normalizar servicios a array
