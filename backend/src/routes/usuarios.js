@@ -1,29 +1,24 @@
 import { Router } from "express";
 import {
   obtenerUsuarios,
-  crearUsuario,
-  actualizarUsuario,
-  desactivarUsuario,
-  crearHashToken
+  actualizarContraseña,
+  actualizarCorreo
+  
 } from "../controllers/usuariosController.js";
 
 
 import { verificarTokenJWT } from "../middleware/auth.js";
+import{ verificarRol} from "../middleware/roles.js";
 
-
-//poner la verificacionJWT en contraseñaCmabiar y cambiar correo
 const router = Router();
 
-router.get("/", obtenerUsuarios);
-router.post("/", crearUsuario);
 
-//Proceso hash (verificación)
+//GET /usuarios obtenerUusarios
+router.get("/", verificarTokenJWT, verificarRol(3), obtenerUsuarios);
 
-router.post("/hash", crearHashToken);
+//POST /usuarios/contraseña
+router.post("/contraseña", verificarTokenJWT, actualizarContraseña);
 
-
-
-router.put("/:idCliente", actualizarUsuario);
-router.delete("/:idCliente", desactivarUsuario);
-
+//PUT /usuarios/correo
+router.put("/correo",verificarTokenJWT, actualizarCorreo );
 export default router;

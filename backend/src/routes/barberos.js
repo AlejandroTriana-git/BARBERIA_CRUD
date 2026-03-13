@@ -2,18 +2,51 @@ import { Router } from "express";
 import { 
     obtenerBarberos,
     obtenerServiciosPorBarbero, 
-    obtenerBarberoPorId
+    obtenerBarberoPorId,
+    crearBarbero,
+    actualizarBarbero,
+    asignarServiciosBarbero,
+    eliminarServicioBarbero,
+    obtenerHorariosBarbero,
+    gestionarHorarioBarbero,
+    eliminarHorarioBarbero
 } from "../controllers/barberosController.js";
 
-const router = Router ();
 
-// GET /barberos - Obtener todos los barberos
-router.get("/", obtenerBarberos);
+import { verificarTokenJWT } from "../middlewares/auth.js";
+import { verificarRol } from "../middlewares/roles.js";
 
-// GET /barberos/:idBarbero - Obtener un barbero específico
-router.get("/:idBarbero", obtenerBarberoPorId);
 
-// GET /barberos/:idBarbero/servicios - Obtener servicios de un barbero
-router.get("/:idBarbero/servicios", obtenerServiciosPorBarbero);
+const router = Router();
+
+// Obtener todos los barberos
+router.get("/",verificarTokenJWT, verificarRol(1,3), obtenerBarberos);
+
+// Obtener barbero específico
+router.get("/:idBarbero", verificarTokenJWT, verificarRol(1,3), obtenerBarberoPorId);
+
+// Obtener servicios de un barbero
+router.get("/:idBarbero/servicios",verificarTokenJWT, verificarRol(1,3), obtenerServiciosPorBarbero);
+
+// Crear barbero (admin)
+router.post("/", verificarTokenJWT, verificarRol(3),crearBarbero);
+
+// Actualizar barbero
+router.put("/:idBarbero",verificarTokenJWT, verificarRol(3), actualizarBarbero);
+
+// Asignar servicios
+router.post("/servicios", verificarTokenJWT, verificarRol(3), asignarServiciosBarbero);
+
+// Eliminar servicios
+router.delete("/servicios", verificarTokenJWT, verificarRol(3), eliminarServicioBarbero);
+
+// Obtener horarios del barbero
+router.get("/:idBarbero/horarios", verificarTokenJWT, verificarRol(3), obtenerHorariosBarbero);
+
+// Crear o actualizar horario
+router.post("/horarios", verificarTokenJWT, verificarRol(3), gestionarHorarioBarbero);
+
+// Eliminar horario
+router.delete("/horarios/:idHorario", verificarTokenJWT, verificarRol(3), eliminarHorarioBarbero);
 
 export default router;

@@ -24,18 +24,3 @@ export const verificarTokenJWT = (req, res, next) => {
     return res.status(401).json({ error: "Token no válido o expirado" });
   }
 };
-
-export const verificarRol = (rolPermitido) => {
-  return (req, res, next) => {
-
-    const { idRol } = req.usuario;
-
-    if (idRol !== rolPermitido) {
-      return res.status(403).json({
-        error: "No tienes permisos para esta acción"
-      });
-    }
-
-    next();
-  };
-};

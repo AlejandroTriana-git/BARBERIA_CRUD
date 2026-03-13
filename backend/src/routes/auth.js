@@ -1,8 +1,9 @@
 import {Router} from "express";
-import { verificarToken } from "../controllers/authController.js";
+import { verificarAuth, registrarCliente } from "../controllers/authController.js";
 
 const router = Router();
 
-router.post("/verificar", verificarToken);
+router.post("/verificar", verificarAuth);
+router.post("/registrarCliente", registrarCliente);
 
 export default router;

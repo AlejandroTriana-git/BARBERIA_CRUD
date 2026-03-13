@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 
 // Obtener todos los barberos
 
-//PERMISO: ADMIN
+//PERMISO: ADMIN y CLIENTE
 export const obtenerBarberos = async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -52,7 +52,7 @@ export const obtenerServiciosPorBarbero = async (req, res) => {
 };
 
 // Obtener un barbero específico
-//PERMISO: NO USAR AUN
+//PERMISO: NO USAR AUN, a futuro ver perfil del barbero, ver informacion del barbero
 export const obtenerBarberoPorId = async (req, res) => {
   try {
     const { idBarbero } = req.params;

@@ -17,7 +17,7 @@ export const obtenerUsuarios = async (req, res) => {
         FROM usuario u
         JOIN rol r ON u.idRol = r.idRol
         LEFT JOIN cliente c ON c.idUsuario = u.idUsuario
-        LEFT JOIN barbero b ON b.idUsuario = u.idUsuario`;);
+        LEFT JOIN barbero b ON b.idUsuario = u.idUsuario`);
     res.status(200).json(rows);
   } catch (error){
     res.status(500).json({error: "Error al obtener usuarios"});

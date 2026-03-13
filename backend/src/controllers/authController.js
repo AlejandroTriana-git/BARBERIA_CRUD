@@ -274,6 +274,8 @@ export const registrarCliente = async (req, res) => {
   }
 };
 
+
+
 //FALTARIA 1 COSA IMPORTANTE
 
 

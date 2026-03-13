@@ -1,17 +1,31 @@
 import { Router} from "express";
 import {
     obtenerServicios,
-    obtenerServicioPorId 
+    obtenerServicioPorId,
+    crearServicio,
+    actualizarServicio
 } from "../controllers/servicioController.js"; 
 
+
+import { verificarTokenJWT } from "../middlewares/auth.js";
+import { verificarRol } from "../middlewares/roles.js";
 
 const router = Router();
 
 
 // GET /servicios - Obtener todos los servicios
-router.get("/", obtenerServicios);
+router.get("/", verificarTokenJWT ,verificarRol(3), obtenerServicios);
 
 // GET /servicios/:idServicio - Obtener un servicio específico
-router.get("/:idServicio", obtenerServicioPorId);
+router.get("/:idServicio", verificarTokenJWT ,verificarRol(3), obtenerServicioPorId);
+
+
+//POST /servicios - Crear servicios
+router.post("/", verificarTokenJWT ,verificarRol(3), crearServicio);
+
+//PUT /servicios/:idServicio - Actualizar servicio
+router.put("/:idServicio", verificarTokenJWT ,verificarRol(3), actualizarServicio);
+
+
 
 export default router;

@@ -211,7 +211,7 @@ export const obtenerHorariosDisponibles = async (req, res) => {
  * antes de crearla o actualizarla en la base de datos
  */
 
-//PERMISO:ADMIN, CLIENTE
+
 export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servicios, idReservaExcluir = null) => {
   try {
     // Normalizar servicios a array
