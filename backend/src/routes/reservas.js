@@ -8,12 +8,12 @@ import {
   agendaBarbero
 } from "../controllers/reservaController.js";
 
-import { verificarTokenJWT } from "../middlewares/auth.js";
-import { verificarRol } from "../middlewares/roles.js";
+import { verificarTokenJWT } from "../middleware/auth.js";
+import { verificarRol } from "../middleware/roles.js";
 
 const router = Router();
 
-// GET /reservas - Obtener todas las reservas
+// GET /reservas - Obtener todas las reservas de el mismo (cliente), aca pueden ir filtros de las reservas
 router.get("/", verificarTokenJWT, verificarRol(1), obtenerReservas);
 
 // GET /reservas/:idReserva - Obtener una reserva específica con detalles

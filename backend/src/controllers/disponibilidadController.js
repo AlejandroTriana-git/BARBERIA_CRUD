@@ -8,20 +8,37 @@ import pool from "../config/db.js";
  * disponibles en el calendario/selector de horas
  */
 
-//PERMISO:ADMIN, CLIENTE
+//PERMISO:CLIENTE
 export const obtenerHorariosDisponibles = async (req, res) => {
   try {
     const { idBarbero, fecha, servicios } = req.query;
-    
+    console.log(idBarbero, fecha, servicios);
     if (!idBarbero || !fecha || !servicios) {
       return res.status(400).json({ 
         error: "Faltan parámetros: idBarbero, fecha, servicios" 
       });
     }
 
+    const fechaObj1 = new Date(fecha);
+
+    if (isNaN(fechaObj1.getTime())) {
+      return res.status(400).json({
+        error: "Formato de fecha inválido"
+      });
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+    fechaObj1.setHours(0,0,0,0);
+
+    if (fechaObj1 < hoy) {
+      return res.status(400).json({
+        error: "Fecha inválida, no puede ser del pasado"
+      });
+    }
     // Convertir servicios de string a array de números
     const listaServicios = servicios.split(',').map(Number);
-    
+    console.log(listaServicios);
     // ========================================================================
     // PASO 1: Calcular duración total de los servicios seleccionados
     // ========================================================================
@@ -120,13 +137,13 @@ export const obtenerHorariosDisponibles = async (req, res) => {
     // PASO 5: Obtener todas las reservas existentes para ese día
     // ========================================================================
     const [reservasExistentes] = await pool.query(
-      `SELECT r.fecha, SUM(s.duracion) AS duracionReserva
+      `SELECT r.fechaReserva, SUM(s.duracion) AS duracionReserva
        FROM reserva r
        INNER JOIN reserva_servicio rs ON r.idReserva = rs.idReserva
        INNER JOIN servicio s ON rs.idServicio = s.idServicio
-       WHERE r.idBarbero = ? AND DATE(r.fecha) = ? AND r.estado = 1
-       GROUP BY r.idReserva, r.fecha
-       ORDER BY r.fecha`,
+       WHERE r.idBarbero = ? AND DATE(r.fechaReserva) = ? AND r.estadoReserva = 1
+       GROUP BY r.idReserva, r.fechaReserva
+       ORDER BY r.fechaReserva`,
       [idBarbero, fecha]
     );
     
@@ -219,6 +236,7 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
       ? servicios.map(Number) 
       : String(servicios).split(',').map(Number).filter(Boolean);
 
+    
     if (!idBarbero || !fechaHora || listaServicios.length === 0) {
       return { disponible: false, error: "Parámetros inválidos" };
     }
@@ -274,7 +292,7 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
     );
 
     let horaFinTrabajo = null;
-    
+    let horaInicioTrabajo = null;
     if (ex.length > 0) {
       // HAY EXCEPCIÓN
       if (!ex[0].activo) {
@@ -284,6 +302,7 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
           mensaje: "Barbero inactivo en esa fecha (día de descanso)" 
         };
       }
+      horaInicioTrabajo = ex[0].horaInicio;
       horaFinTrabajo = ex[0].horaFin;
     } else {
       // Usar horario semanal
@@ -310,7 +329,7 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
           mensaje: "Barbero inactivo ese día de la semana" 
         };
       }
-      
+      horaInicioTrabajo = wk[0].horaInicio;
       horaFinTrabajo = wk[0].horaFin;
     }
 
@@ -319,11 +338,11 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
     // ========================================================================
     let params = [idBarbero, fechaOnly];
     let query = `
-      SELECT r.fecha, SUM(s.duracion) AS duracionReserva
+      SELECT r.fechaReserva, SUM(s.duracion) AS duracionReserva
       FROM reserva r
       INNER JOIN reserva_servicio rs ON r.idReserva = rs.idReserva
       INNER JOIN servicio s ON rs.idServicio = s.idServicio
-      WHERE r.idBarbero = ? AND DATE(r.fecha) = ? AND r.estado = 1
+      WHERE r.idBarbero = ? AND DATE(r.fechaReserva) = ? AND r.estadoReserva = 1
     `;
     
     if (idReservaExcluir) {
@@ -331,7 +350,7 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
       params.push(idReservaExcluir);
     }
     
-    query += ` GROUP BY r.idReserva, r.fecha ORDER BY r.fecha`;
+    query += ` GROUP BY r.idReserva, r.fechaReserva ORDER BY r.fechaReserva`;
     const [reservasExistentes] = await pool.query(query, params);
 
     // ========================================================================
@@ -341,6 +360,7 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
       fechaHora, 
       duracionTotal, 
       reservasExistentes, 
+      horaInicioTrabajo,
       horaFinTrabajo
     );
 
@@ -371,42 +391,65 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
  * 1. Que el servicio termine antes del cierre
  * 2. Que no colisione con otras reservas
  */
-function verificarDisponibilidad(fechaHora, duracion, reservasExistentes, horaFinTrabajo) {
+
+function verificarDisponibilidad(
+  fechaHora,
+  duracion,
+  reservasExistentes,
+  horaInicioTrabajo,
+  horaFinTrabajo
+) {
+
   const inicioNuevo = new Date(fechaHora);
   const finNuevo = new Date(inicioNuevo.getTime() + duracion * 60000);
-  
-  // ========================================================================
-  // VALIDACIÓN 1: El servicio debe terminar ANTES del cierre
-  // ========================================================================
-  const [horaFin, minutoFin] = horaFinTrabajo.split(':').map(Number);
-  const fechaBase = fechaHora.split(' ')[0];
-  const horarioCierre = new Date(`${fechaBase} ${horaFin}:${minutoFin}:00`);
-  
-  if (finNuevo > horarioCierre) {
-    return false; // El servicio se saldría del horario laboral
+
+  const fechaBase = fechaHora.split(" ")[0];
+
+  const horarioInicio = new Date(`${fechaBase} ${horaInicioTrabajo}`);
+  const horarioFin = new Date(`${fechaBase} ${horaFinTrabajo}`);
+
+  // ============================================
+  // VALIDACIÓN 1: Debe iniciar dentro del horario
+  // ============================================
+  if (inicioNuevo < horarioInicio || inicioNuevo >= horarioFin) {
+    return false;
   }
-  
-  // ========================================================================
-  // VALIDACIÓN 2: No debe haber traslape con otras reservas
-  // ========================================================================
+
+  // ============================================
+  // VALIDACIÓN 2: Debe terminar antes del cierre
+  // ============================================
+  if (finNuevo > horarioFin) {
+    return false;
+  }
+
+  // ============================================
+  // VALIDACIÓN 3: Debe respetar slots de 30 min
+  // ============================================
+  const minutos = inicioNuevo.getMinutes();
+
+  if (minutos !== 0 && minutos !== 30) {
+    return false;
+  }
+
+  // ============================================
+  // VALIDACIÓN 4: No debe colisionar con reservas
+  // ============================================
   for (const reserva of reservasExistentes) {
-    const inicioReserva = new Date(reserva.fecha);
-    const finReserva = new Date(inicioReserva.getTime() + reserva.duracionReserva * 60000);
-    
-    // Detectar cualquier tipo de traslape:
-    // - La nueva empieza durante una existente
-    // - La nueva termina durante una existente  
-    // - La nueva envuelve completamente una existente
-    const hayTraslape = (
+
+    const inicioReserva = new Date(reserva.fechaReserva);
+    const finReserva = new Date(
+      inicioReserva.getTime() + reserva.duracionReserva * 60000
+    );
+
+    const hayTraslape =
       (inicioNuevo >= inicioReserva && inicioNuevo < finReserva) ||
       (finNuevo > inicioReserva && finNuevo <= finReserva) ||
-      (inicioNuevo <= inicioReserva && finNuevo >= finReserva)
-    );
-    
+      (inicioNuevo <= inicioReserva && finNuevo >= finReserva);
+
     if (hayTraslape) {
-      return false; // Hay conflicto con esta reserva
+      return false;
     }
   }
-  
-  return true; // Está libre
+
+  return true;
 }

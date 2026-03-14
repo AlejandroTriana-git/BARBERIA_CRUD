@@ -4,8 +4,8 @@ import {
 } from "../controllers/disponibilidadController.js";
 
 
-import { verificarTokenJWT } from "../middlewares/auth.js";
-import { verificarRol } from "../middlewares/roles.js";
+import { verificarTokenJWT } from "../middleware/auth.js";
+import { verificarRol } from "../middleware/roles.js";
 const router = express.Router();
 
 // Obtener horarios disponibles para reservar

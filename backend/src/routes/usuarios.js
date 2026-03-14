@@ -13,7 +13,7 @@ import{ verificarRol} from "../middleware/roles.js";
 const router = Router();
 
 
-//GET /usuarios obtenerUusarios
+//GET /usuarios obtenerUsuarios
 router.get("/", verificarTokenJWT, verificarRol(3), obtenerUsuarios);
 
 //POST /usuarios/contraseña

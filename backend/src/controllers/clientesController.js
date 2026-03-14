@@ -7,7 +7,6 @@ export const obtenerPerfilCliente = async (req, res) => {
   try {
 
     const { idUsuario } = req.usuario;
-
     const [rows] = await pool.query(
       `SELECT 
         c.nombreCliente,

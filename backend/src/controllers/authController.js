@@ -7,6 +7,9 @@ const JWT_SECRET = process.env.JWT_SECRET || "tu_clave_secreta_corta"; // en pro
 const JWT_EXPIRES_IN = "8h"; // ajusta según necesidad
 
 
+
+//Falta validar que el telefono sea de 10, que ademas el correo cumpla
+
 //Este es el encargado de autenticar a un usuario, el ingreso a la plataforma, incluyendo el JWT
 
 //PERMISO: ADMIN, BARBERO, CLEINTE
@@ -36,7 +39,8 @@ export const verificarAuth = async (req, res) => {
     // 0) Seleccionar cliente con FOR UPDATE usando la misma conexión/tx
     const [usuarioRows] = await connection.query(
       `SELECT
-          r.nombreRol, 
+          r.nombreRol,
+          u.idRol, 
           u.idUsuario,
           u.contraseñaUsuario 
       FROM usuario u 
@@ -52,6 +56,7 @@ export const verificarAuth = async (req, res) => {
     }
 
     const rol = usuarioRows[0].nombreRol;
+    const rolNumero = usuarioRows[0].idRol;
     const contraseñaHash = usuarioRows[0].contraseñaUsuario;
     const idUsuario = usuarioRows[0].idUsuario;
 
@@ -137,9 +142,7 @@ export const verificarAuth = async (req, res) => {
         return res.status(400).json({
           error: `Código inválido o expirado. Te quedan ${intentosRestantes} intento(s).`
         });
-      } else {
-        return res.status(400).json({ error: "Correo o contraseña invalido." });
-      }
+      } 
     }
 
     // 6) registrar intento exitoso y limpiar antiguos
@@ -168,11 +171,7 @@ export const verificarAuth = async (req, res) => {
     }
 
     if (rol == "administrador"){
-      const [clienteRows] =await connection.query(
-        "SELECT idCliente FROM cliente WHERE idUsuario = ? LIMIT 1",
-        [idUsuario]
-      )
-      idPerfil= clienteRows[0].idCliente;
+      idPerfil= undefined;
     }
 
     if (rol == "barbero"){
@@ -186,16 +185,16 @@ export const verificarAuth = async (req, res) => {
     (`Verificación exitosa - usuario ${idUsuario}`);
 
     // Generar token fuera de la transacción (ya hicimos commit)
-    const payload = { id: idUsuario, rol: rol , idPerfil: idPerfil};
+    const payload = { idUsuario: idUsuario, rol: rolNumero , idPerfil: idPerfil};
     const tokenWeb = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-    const user = { id: idUsuario, rol: rol, idPerfil: idPerfil };
+    const user = { idUsuario: idUsuario, rol: rolNumero, idPerfil: idPerfil };
     return res.status(200).json({ message: "Verificación exitosa", tokenWeb, JWT_EXPIRES_IN, user });
 
   } catch (error) {
     console.error("ERROR en verificarToken:", error);
     try { if (connection) await connection.rollback(); } catch (e) { console.error("Rollback falló:", e); }
-    return res.status(500).json({ error: "Error al verificar código" });
+    return res.status(500).json({ error: "Error al verificar" });
   } finally {
     if (connection) {
       try { connection.release(); } catch (e) { /* no-op */ }
@@ -239,7 +238,7 @@ export const registrarCliente = async (req, res) => {
       `INSERT INTO usuario 
       (correoUsuario, contraseñaUsuario, idRol)
       VALUES (?, ?, ?)`,
-      [correoUsuario, contraseñaHash, 3] // rol cliente
+      [correoUsuario, contraseñaHash, 1] // rol cliente
     );
 
     const idUsuario = usuarioResult.insertId;

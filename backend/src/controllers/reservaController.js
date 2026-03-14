@@ -6,59 +6,58 @@ import { validarDisponibilidadReserva} from "./disponibilidadController.js"
 
 TENER EN CUENTA LOS SIGUIENTES ESTADOS:
 0: cancelada
-1:  No asistio
-2:  Realizado
+1:  Pendiente (en proximos dias tiene la reserva)
+2:  No asistio
+3:  Realizado
  */
 
 //CLIENTES CON RESERVAS
 //PERMISO: CLIENTE
-//Para traer las reservas segun un filtro, se usa query params, donde se envia por sql, va despues de ?
+//Para traer las reservas segun un filtro
 export const obtenerReservas = async (req, res) => {
   try {
-    const idCliente = req.usuario.id;
-    const { estado } = req.query;
+    const idCliente = req.usuario.idPerfil;
     console.log(idCliente);
+    const { estado } = req.query;
+    
     
     let filtroEstado = "";
 
-    if (estado === "pendiente") {
-      filtroEstado = "AND r.estado = 1 AND r.fecha >= NOW()";
-    }
-
+   
     if (estado === "cancelada") {
-      filtroEstado = "AND r.estado = 0";
+      filtroEstado = "AND r.estadoReserva = 0";
     }
 
     if (estado === "realizadas") {
-      filtroEstado = "AND r.estado = 3";
+      filtroEstado = "AND r.estadoReserva = 3";
     }
 
     if (estado == "sin asistir"){
-      filtroEstado = "AND r.estado = 2";
+      filtroEstado = "AND r.estadoReserva = 2";
     }
 
+    if (estado == "pendiente"){
+      filtroEstado = "AND r.estadoReserva = 1";
+    }
     const [rows] = await pool.query(
       `SELECT 
         r.idReserva,
         r.idBarbero,
-        r.fecha,
-        r.detalle,
-        r.estado,
-        b.nombreBarbero as nombreBarbero,
-        c.idCliente,
-        c.nombre as nombreCliente,
-        c.correo,
-        c.telefono
+        r.fechaReserva,
+        r.detalleReserva,
+        r.estadoReserva,
+        b.nombreBarbero as nombreBarbero
       FROM reserva r 
-      INNER JOIN cliente c ON r.idCliente = c.idCliente
       INNER JOIN barbero b ON r.idBarbero = b.idBarbero
       WHERE r.idCliente = ?
       ${filtroEstado}
-      ORDER BY r.fecha DESC`, 
+      ORDER BY r.fechaReserva DESC`, 
       [idCliente]);
-    
+    console.log(rows);
     res.json(rows);
   } catch (error) {
+    
+    console.error("Error al obtener reserva:", error.message);
     res.status(500).json({ error: "Error al obtener reservas" });
   }
 };
@@ -141,90 +140,112 @@ export const obtenerReservaPorId = async (req, res) => {
  * ============================================================================
  */
 //PERMISO: CLIENTE
+
+
 export const crearReserva = async (req, res) => {
+
   const connection = await pool.getConnection();
-  
+
   try {
 
-    const idCliente = req.usuario.idPerfil;
-    const { idBarbero, fecha, detalle, servicios } = req.body;
-    
-    // ========================================================================
-    // VALIDACIÓN 1: Datos requeridos
-    // ========================================================================
-    if (!idCliente || !idBarbero || !fecha || !servicios || servicios.length === 0) {
+    const { idBarbero, fechaHora, servicios } = req.body;
+    if (!idBarbero || !fechaHora || !servicios || servicios.length === 0) {
       return res.status(400).json({ 
         error: "Faltan datos requeridos",
         requeridos: ["idCliente", "idBarbero", "fecha", "servicios (array)"]
       });
     }
-    
-    // ========================================================================
-    // VALIDACIÓN 2: Verificar disponibilidad del horario
-    // ========================================================================
+    const fechaOnly = fechaHora.split(" ")[0];
+
+    await connection.beginTransaction();
+
+    // ========================================
+    // BLOQUEAR RESERVAS DE ESE BARBERO
+    // ========================================
+
+    const [reservasBloqueadas] = await connection.query(`
+      SELECT r.idReserva
+      FROM reserva r
+      WHERE r.idBarbero = ?
+      AND DATE(r.fechaReserva) = ?
+      FOR UPDATE
+    `,[idBarbero, fechaOnly]);
+
+
+    // ========================================
+    // VALIDAR DISPONIBILIDAD
+    // ========================================
+
     const validacion = await validarDisponibilidadReserva(
       idBarbero,
-      fecha,
-      servicios,
-      null // No excluir ninguna reserva (es nueva)
+      fechaHora,
+      servicios
     );
-    
+
     if (!validacion.disponible) {
-      return res.status(409).json({
-        error: "El horario no está disponible",
-        detalles: {
-          mensaje: validacion.mensaje,
-          duracionSolicitada: validacion.duracionTotal,
-          conflictos: validacion.conflictos
-        },
-        sugerencia: "Elige otro horario o consulta los horarios disponibles"
+
+      await connection.rollback();
+
+      return res.status(400).json({
+        error: validacion.mensaje || "Horario no disponible"
       });
+
     }
-    
-    // ========================================================================
-    // CREAR LA RESERVA
-    // ========================================================================
-    await connection.beginTransaction();
-    
-    // 1. Insertar la reserva
-    const [resultReserva] = await connection.query(
-      "INSERT INTO reserva (idCliente, idBarbero, fecha, detalle, estado) VALUES (?, ?, ?, ?, 1)",
-      [idCliente, idBarbero, fecha, detalle || null]
-    );
-    
-    const idReserva = resultReserva.insertId;
-    
-    // 2. Insertar los servicios en reserva_servicio
-    for (const idServicio of servicios) {
-      await connection.query(
-        "INSERT INTO reserva_servicio (idReserva, idServicio) VALUES (?, ?)",
-        [idReserva, idServicio]
-      );
-    }
-    
-    await connection.commit();
-    
-    res.status(201).json({ 
-      message: "Reserva creada exitosamente",
-      reserva: {
-        idReserva,
+
+
+    // ========================================
+    // INSERTAR RESERVA
+    // ========================================
+
+    const [reserva] = await connection.query(`
+      INSERT INTO reserva (
+        idCliente,
         idBarbero,
-        fecha,
-        duracion: validacion.duracionTotal,
-        servicios
-      }
+        fechaReserva,
+        estadoReserva
+      )
+      VALUES (?,?,?,1)
+    `,[req.usuario.idPerfil,idBarbero,fechaHora]);
+
+
+    const idReserva = reserva.insertId;
+
+
+    // insertar servicios de la reserva
+
+    for (const servicio of servicios) {
+
+      await connection.query(`
+        INSERT INTO reserva_servicio (idReserva,idServicio)
+        VALUES (?,?)
+      `,[idReserva, servicio]);
+
+    }
+
+
+    await connection.commit();
+
+    res.json({
+      ok:true,
+      idReserva
     });
-    
+
   } catch (error) {
+
     await connection.rollback();
-    console.error("Error al crear reserva:", error.message);
-    res.status(500).json({ error: "Error al crear reserva" });
+    console.error(error);
+
+    res.status(500).json({
+      error:"Error creando reserva"
+    });
+
   } finally {
+
     connection.release();
+
   }
+
 };
-
-
 
 /* Actualizar una reserva
  */

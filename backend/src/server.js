@@ -8,6 +8,7 @@ import servicioRoutes from "./routes/servicios.js";
 import reservaRoutes from "./routes/reservas.js";
 import disponibilidadRoutes from "./routes/disponibilidad.js"
 import authRoutes from "./routes/auth.js";
+import clienteRoutes from "./routes/clientes.js";
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use("/servicios", servicioRoutes);
 app.use("/reservas", reservaRoutes);
 app.use("/disponibilidad", disponibilidadRoutes);
 app.use("/auth", authRoutes);
+app.use("/clientes", clienteRoutes);
 
 
 app.listen(PORT, () => {

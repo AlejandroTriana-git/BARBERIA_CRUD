@@ -13,9 +13,8 @@ import {
 } from "../controllers/barberosController.js";
 
 
-import { verificarTokenJWT } from "../middlewares/auth.js";
-import { verificarRol } from "../middlewares/roles.js";
-
+import { verificarTokenJWT } from "../middleware/auth.js";
+import{ verificarRol} from "../middleware/roles.js";
 
 const router = Router();
 
