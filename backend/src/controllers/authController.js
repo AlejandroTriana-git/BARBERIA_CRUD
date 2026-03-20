@@ -212,7 +212,7 @@ export const registrarCliente = async (req, res) => {
   try {
 
     const { nombreCliente, telefonoCliente, correoUsuario, contraseña } = req.body;
-
+    
     if (!nombreCliente || !telefonoCliente || !correoUsuario || !contraseña) {
       return res.status(400).json({
         message: "Todos los campos son obligatorios"

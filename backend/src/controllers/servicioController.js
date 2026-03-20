@@ -63,7 +63,7 @@ export const crearServicio = async (req, res) => {
     const [result] = await pool.query(
       `INSERT INTO servicio 
       (nombreServicio, duracion, costo)
-      VALUES (?, ?, ?, ?)`,
+      VALUES (?, ?, ?)`,
       [nombreServicio, duracion, costo]
     );
 
@@ -115,7 +115,7 @@ export const actualizarServicio = async (req, res) => {
        duracion = COALESCE(?, duracion),
        costo = COALESCE(?, costo)
        WHERE idServicio = ?`,
-      [nombreServicio, duracion, costo, puntuacion, idServicio]
+      [nombreServicio, duracion, costo, idServicio]
     );
 
     res.json({

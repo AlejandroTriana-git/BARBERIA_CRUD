@@ -17,7 +17,7 @@ TENER EN CUENTA LOS SIGUIENTES ESTADOS:
 export const obtenerReservas = async (req, res) => {
   try {
     const idCliente = req.usuario.idPerfil;
-    console.log(idCliente);
+   
     const { estado } = req.query;
     
     
@@ -53,7 +53,7 @@ export const obtenerReservas = async (req, res) => {
       ${filtroEstado}
       ORDER BY r.fechaReserva DESC`, 
       [idCliente]);
-    console.log(rows);
+    
     res.json(rows);
   } catch (error) {
     
@@ -79,13 +79,12 @@ export const obtenerReservaPorId = async (req, res) => {
         r.idReserva,
         r.idCliente,
         r.idBarbero,
-        r.fecha,
-        r.detalle,
-        r.estado,
+        r.fechaReserva,
+        r.detalleReserva,
+        r.estadoReserva,
         b.nombreBarbero as nombreBarbero,
-        c.nombre as nombreCliente,
-        c.correo,
-        c.telefono
+        c.nombreCliente as nombreCliente,
+        c.telefonoCliente
       FROM reserva r
       INNER JOIN cliente c ON r.idCliente = c.idCliente
       INNER JOIN barbero b ON r.idBarbero = b.idBarbero
@@ -157,6 +156,23 @@ export const crearReserva = async (req, res) => {
     }
     const fechaOnly = fechaHora.split(" ")[0];
 
+    const fechaObj1 = new Date(fechaHora);
+
+    if (isNaN(fechaObj1.getTime())) {
+      return res.status(400).json({
+        error: "Formato de fecha inválido"
+      });
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+    fechaObj1.setHours(0,0,0,0);
+
+    if (fechaObj1 < hoy) {
+      return res.status(400).json({
+        error: "Fecha inválida, no puede ser del pasado"
+      });
+    }
     await connection.beginTransaction();
 
     // ========================================
@@ -268,7 +284,7 @@ export const actualizarReserva = async (req, res) => {
     }
     
     // VALIDACIÓN FUTURA: Verificar que falten más de 24 horas
-    const fechaReserva = new Date(reservaExistente[0].fecha);
+    const fechaReserva = new Date(reservaExistente[0].fechaReserva);
     const ahora = new Date();
     const horasRestantes = (fechaReserva - ahora) / (1000 * 60 * 60);
     // 
@@ -282,8 +298,8 @@ export const actualizarReserva = async (req, res) => {
     
     // 1. Actualizar datos básicos de la reserva
     await connection.query(
-      "UPDATE reserva SET fecha = ?, detalle = ? WHERE idReserva = ?",
-      [fecha || reservaExistente[0].fecha, detalle, idReserva]
+      "UPDATE reserva SET fechaReserva = ?, detalleReserva = ? WHERE idReserva = ?",
+      [fechaReserva || reservaExistente[0].fechaReserva, detalle, idReserva]
     );
     
 
@@ -334,14 +350,14 @@ export const cancelarReserva = async (req, res) => {
       return res.status(404).json({ error: "Reserva no encontrada" });
     }
 
-    if (reserva.estado !== 1) {
+    if (reserva.estadoReserva !== 1) {
       await connection.rollback();
       return res.status(400).json({
         error: "La reserva ya está cancelada o completada",
       });
     }
     // VALIDACIÓN FUTURA: Verificar que falten más de 24 horas
-    const fechaReserva = new Date(reserva.fecha);
+    const fechaReserva = new Date(reserva.fechaReserva);
     const ahora = new Date();
     const horasRestantes = (fechaReserva - ahora) / (1000 * 60 * 60);
     // 
@@ -353,7 +369,7 @@ export const cancelarReserva = async (req, res) => {
 
     // 2. Actualizar estado
     await connection.query(
-      "UPDATE reserva SET estado = 0 WHERE idReserva = ?",
+      "UPDATE reserva SET estadoReserva = 0 WHERE idReserva = ?",
       [idReserva]
     );
 
@@ -382,7 +398,6 @@ export const agendaBarbero = async (req, res) => {
   try {
 
     const { idUsuario } = req.usuario;
-
     
     const [barbero] = await pool.query(
       "SELECT idBarbero FROM barbero WHERE idUsuario = ?",

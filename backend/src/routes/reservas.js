@@ -17,7 +17,7 @@ const router = Router();
 router.get("/", verificarTokenJWT, verificarRol(1), obtenerReservas);
 
 // GET /reservas/:idReserva - Obtener una reserva específica con detalles
-router.get("/:idReserva", verificarTokenJWT, verificarRol(1), obtenerReservaPorId);
+router.get("/:idReserva/cliente", verificarTokenJWT, verificarRol(1), obtenerReservaPorId);
 
 // POST /reservas - Crear una nueva reserva
 router.post("/", verificarTokenJWT, verificarRol(1), crearReserva);
@@ -28,8 +28,11 @@ router.put("/:idReserva", verificarTokenJWT, verificarRol(1), actualizarReserva)
 // PUT /reservas/:idReserva - Cancelar una reserva
 router.put("/:idReserva/cancelar", verificarTokenJWT, verificarRol(1), cancelarReserva);
 
-//GET /reservas/:idBarbero - Obtener la agenda del barbero
- router.get("/barbero/:idBarbero", verificarTokenJWT, verificarRol(2), agendaBarbero);
+// //GET /reservas/:idBarbero - Obtener la agenda del barbero por parte del administrador
+//  router.get("/barbero/:idBarbero", verificarTokenJWT, verificarRol(3), agendaBarbero);
 
-
+ 
+//GET /reservas/agenda - Obtener la agenda del barbero por parte del propio barbero
+ router.get("/agenda", verificarTokenJWT, verificarRol(2), agendaBarbero);
+ 
 export default router;
