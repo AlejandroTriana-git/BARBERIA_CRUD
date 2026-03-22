@@ -1,6 +1,9 @@
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
-
+import { validarEmail,
+          validarTelefono,
+          validarNombre
+} from "../utils/validaciones.js";
 //Mejorar respuestas de horario_Barbero, mejorar logica con activo
 
 // Obtener todos los barberos
@@ -14,6 +17,12 @@ export const obtenerBarberos = async (req, res) => {
         nombreBarbero,
         telefonoBarbero
         FROM barbero`);
+
+      if (rows.length === 0) {
+        return res.status(404).json({
+          message: "No hay barberos registrados"
+        });
+      }
     res.json(rows);
   } catch (error) {
     console.error("Error al obtener barberos:", error.message);
@@ -26,6 +35,9 @@ export const obtenerBarberos = async (req, res) => {
 export const obtenerServiciosPorBarbero = async (req, res) => {
   try {
     const { idBarbero } = req.params;
+    if (!idBarbero) {
+      return res.status(400).json({ error: "Falta idBarbero" });
+    }
     const [barberoExiste] = await pool.query(
       "SELECT idBarbero FROM barbero WHERE idBarbero = ?",
       [idBarbero]
@@ -50,6 +62,11 @@ export const obtenerServiciosPorBarbero = async (req, res) => {
       [idBarbero]
     );
     
+    if (rows.length === 0) {
+      return res.status(404).json({
+        message: "Este barbero aún no tiene servicios asignados"
+      });
+    }
     res.json(rows);
   } catch (error) {
     console.error("Error al obtener servicios del barbero:", error.message);
@@ -62,6 +79,11 @@ export const obtenerServiciosPorBarbero = async (req, res) => {
 export const obtenerBarberoPorId = async (req, res) => {
   try {
     const { idBarbero } = req.params;
+
+    if (!idBarbero) {
+      return res.status(400).json({ error: "Falta idBarbero" });
+    }
+
     const [rows] = await pool.query(
       "SELECT * FROM barbero WHERE idBarbero = ?",
       [idBarbero]
@@ -91,6 +113,23 @@ export const crearBarbero = async (req, res) => {
         message: "Todos los campos son obligatorios"
       });
     }
+    // Validaciones
+
+    if (validarNombre(nombreBarbero).valido === false) {
+      return res.status(400).json({
+        message: validarNombre(nombreBarbero).error
+      });
+    }
+    if (validarTelefono(telefonoBarbero).valido === false) {
+      return res.status(400).json({
+        message: validarTelefono(telefonoBarbero).error
+      });
+    }
+    if (validarEmail(correoUsuario).valido === false) {
+      return res.status(400).json({
+        message: validarEmail(correoUsuario).error
+      });
+    } 
 
     // verificar si el correo ya existe
     const [correoExiste] = await connection.query(
@@ -160,6 +199,27 @@ export const actualizarBarbero = async (req, res) => {
     const { idBarbero } = req.params;
     const { nombreBarbero, telefonoBarbero } = req.body;
 
+    if (!idBarbero) {
+      return res.status(400).json({
+        message: "Falta idBarbero"
+      });
+    }
+    if (!nombreBarbero && !telefonoBarbero) {
+      return res.status(400).json({
+        message: "Al menos un campo (nombreBarbero o telefonoBarbero) debe ser proporcionado para actualizar"
+      });
+    }
+    
+    if (validarNombre(nombreBarbero).valido === false) {
+      return res.status(400).json({
+        message: validarNombre(nombreBarbero).error
+      });
+    }
+    if (validarTelefono(telefonoBarbero).valido === false) {
+      return res.status(400).json({
+        message: validarTelefono(telefonoBarbero).error
+      });
+    }
     const [barberoExiste] = await pool.query(
       "SELECT idBarbero FROM barbero WHERE idBarbero = ?",
       [idBarbero]
@@ -200,6 +260,7 @@ export const actualizarBarbero = async (req, res) => {
 
 //PERMISO:ADMIN
 export const asignarServiciosBarbero = async (req, res) => {
+  const connection = await pool.getConnection();
   try {
 
     const { idBarbero, servicios } = req.body;
@@ -210,12 +271,41 @@ export const asignarServiciosBarbero = async (req, res) => {
       });
     }
 
+    // Validar que el barbero existe
+    const [barberoExiste] = await connection.query(
+      "SELECT idBarbero FROM barbero WHERE idBarbero = ?",
+      [idBarbero]
+    );
+
+    if (barberoExiste.length === 0) {
+      return res.status(404).json({
+        message: "Barbero no encontrado"
+      });
+    }
+
+    await connection.beginTransaction();
+
     for (const idServicio of servicios) {
-      await pool.query(
+      // Validar que el servicio existe
+      const [servicioExiste] = await connection.query(
+        "SELECT idServicio FROM servicio WHERE idServicio = ?",
+        [idServicio]
+      );
+
+      if (servicioExiste.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({
+          message: `Servicio con id ${idServicio} no encontrado`
+        });
+      }
+
+      await connection.query(
         "INSERT INTO barbero_servicio (idBarbero, idServicio) VALUES (?, ?)",
         [idBarbero, idServicio]
       );
     }
+
+    await connection.commit();
 
     res.status(201).json({
       message: "Servicios asignados correctamente"
@@ -223,11 +313,17 @@ export const asignarServiciosBarbero = async (req, res) => {
 
   } catch (error) {
 
+    await connection.rollback();
+
     console.error(error);
 
     res.status(500).json({
       error: "Error al asignar servicios"
     });
+
+  } finally {
+
+    connection.release();
 
   }
 };
@@ -237,6 +333,8 @@ export const asignarServiciosBarbero = async (req, res) => {
 // eliminarServicioBarbero, tambien se maneja for, por si llega a enviar varios.
 //PERMISO:ADMIN
 export const eliminarServicioBarbero = async (req, res) => {
+  const connection = await pool.getConnection();
+
   try {
 
     const { idBarbero, servicios } = req.body;
@@ -247,12 +345,39 @@ export const eliminarServicioBarbero = async (req, res) => {
       });
     }
 
+    // Validar que el barbero existe
+    const [barberoExiste] = await connection.query(
+      "SELECT idBarbero FROM barbero WHERE idBarbero = ?",
+      [idBarbero]
+    );
+
+    if (barberoExiste.length === 0) {
+      return res.status(404).json({
+        message: "Barbero no encontrado"
+      });
+    }
+
+    await connection.beginTransaction();
+
     for (const idServicio of servicios) {
-      await pool.query(
+      // Validar que el servicio existe
+      const [servicioExiste] = await connection.query(
+        "SELECT idServicio FROM servicio WHERE idServicio = ?",
+        [idServicio]
+      );
+      if (servicioExiste.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({
+          message: `Servicio con id ${idServicio} no encontrado`
+        });
+      }
+      await connection.query(
         "DELETE FROM barbero_servicio WHERE idBarbero = ? AND idServicio = ?",
         [idBarbero, idServicio]
       );
     }
+
+    await connection.commit();
 
     res.status(200).json({
       message: "Servicios eliminados correctamente"
@@ -260,11 +385,17 @@ export const eliminarServicioBarbero = async (req, res) => {
 
   } catch (error) {
 
+    await connection.rollback();
+
     console.error(error);
 
     res.status(500).json({
       error: "Error al eliminar servicios"
     });
+
+  } finally {
+
+    connection.release();
 
   }
 };
@@ -331,28 +462,19 @@ export const gestionarHorarioBarbero = async (req, res) => {
       idBarbero, 
       diaSemana = null, 
       fechaEspecifica = null, 
-      horaInicio, 
-      horaFin,
+      horaInicio = null, 
+      horaFin = null,
       activo =1
     } = req.body;
     
     // Validaciones
     
-    if (!idBarbero || !horaInicio || !horaFin) {
+    if (!idBarbero) {
       return res.status(400).json({ 
-        error: "Faltan datos requeridos: idBarbero, horaInicio, horaFin" 
+        error: "Faltan datos requeridos: idBarbero" 
       });
     }
-    const [barberoExiste] = await pool.query(
-      "SELECT idBarbero FROM barbero WHERE idBarbero = ?",
-      [idBarbero]
-    );
-
-    if (barberoExiste.length === 0) {
-      return res.status(404).json({
-        message: "Barbero no encontrado"
-      });
-    }
+    
     // No pueden estar ambos definidos
     if (fechaEspecifica && diaSemana) {
       return res.status(400).json({ 
@@ -366,7 +488,32 @@ export const gestionarHorarioBarbero = async (req, res) => {
         error: "Debe especificar diaSemana o fechaEspecifica" 
       });
     }
+    //Verifica para dias que no se trabaja, no se asignen horas
+    if (activo == 0 && (horaInicio || horaFin)) {
+      return res.status(400).json({
+        error: "Si el horario está inactivo, horaInicio y horaFin deben ser null (dia que no se trabaja)"
+      });
+    }
 
+    if (activo == 1) {
+      if (!horaInicio || !horaFin) {
+        return res.status(400).json({
+          error: "Si el horario está activo, horaInicio y horaFin son obligatorios"
+        });
+      }
+    }
+
+    const [barberoExiste] = await pool.query(
+      "SELECT idBarbero FROM barbero WHERE idBarbero = ?",
+      [idBarbero]
+    );
+
+    
+    if (barberoExiste.length === 0) {
+      return res.status(404).json({
+        message: "Barbero no encontrado"
+      });
+    }
     // Insertar o actualizar
     await pool.query(
       `INSERT INTO barbero_horario 
@@ -397,6 +544,9 @@ export const eliminarHorarioBarbero = async (req, res) => {
   try {
     const { idHorario } = req.params;
     
+    if (!idHorario) {
+      return res.status(400).json({ error: "Falta idHorario" });
+    }
     
     
     const [result] = await pool.query(

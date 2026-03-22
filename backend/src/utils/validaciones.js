@@ -4,8 +4,8 @@ export function validarEmail(correo) {
   if (!regexEmail.test(correo)) {
     return { valido: false, error: "Formato de correo inválido" };
   }
-  if (correo.length > 255) {
-    return { valido: false, error: "Correo muy largo (máx 255 caracteres)" };
+  if (correo.length > 100) {
+    return { valido: false, error: "Correo muy largo (máx 100 caracteres)" };
   }
   return { valido: true };
 }
@@ -22,21 +22,21 @@ export function validarTelefono(telefono) {
 // ✅ FUNCIÓN: Validar contraseña fuerte
 export function validarContraseñaFuerte(contraseña) {
   if (contraseña.length < 8) {
-    return { valida: false, error: "Contraseña mínimo 8 caracteres" };
+    return { valido: false, error: "Contraseña mínimo 8 caracteres" };
   }
   if (!/[A-Z]/.test(contraseña)) {
-    return { valida: false, error: "Debe tener al menos 1 mayúscula (A-Z)" };
+    return { valido: false, error: "Debe tener al menos 1 mayúscula (A-Z)" };
   }
   if (!/[a-z]/.test(contraseña)) {
-    return { valida: false, error: "Debe tener al menos 1 minúscula (a-z)" };
+    return { valido: false, error: "Debe tener al menos 1 minúscula (a-z)" };
   }
   if (!/[0-9]/.test(contraseña)) {
-    return { valida: false, error: "Debe tener al menos 1 número (0-9)" };
+    return { valido: false, error: "Debe tener al menos 1 número (0-9)" };
   }
   if (!/[!@#$%^&*()_+\-=\[\]{};:'",.<>?/]/.test(contraseña)) {
-    return { valida: false, error: "Debe tener al menos 1 carácter especial (!@#$%)" };
+    return { valido: false, error: "Debe tener al menos 1 carácter especial (!@#$%)" };
   }
-  return { valida: true };
+  return { valido: true };
 }
 
 // ✅ FUNCIÓN: Validar hora formato HH:MM
@@ -60,11 +60,24 @@ export function horaInicio_MenorQue_horaFin(inicio, fin) {
 export function validarFecha(fecha) {
   const regexFecha = /^\d{4}-\d{2}-\d{2}$/;
   if (!regexFecha.test(fecha)) {
-    return { valida: false, error: "Formato de fecha inválido. Use YYYY-MM-DD" };
+    return { valido: false, error: "Formato de fecha inválido. Use YYYY-MM-DD" };
   }
   const fechaObj = new Date(fecha);
   if (isNaN(fechaObj.getTime())) {
-    return { valida: false, error: "La fecha especificada no es válida" };
+    return { valido: false, error: "La fecha especificada no es válida" };
   }
-  return { valida: true };
+  return { valido: true };
+}
+
+// ✅ FUNCIÓN: Validar nombre (no vacío, longitud 2-100)
+export function validarNombre(nombre) {
+  if (typeof nombre !== "string" || nombre.trim() === "") {
+    return { valido: false, error: "El nombre es obligatorio" };
+  }
+  if (nombre.length < 2 || nombre.length > 100) {
+    return { valido: false, error: "El nombre debe tener entre 2 y 100 caracteres" };
+  }
+
+  return { valido: true };
+
 }

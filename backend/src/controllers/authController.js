@@ -2,7 +2,11 @@
 import pool from "../config/db.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-
+import { validarEmail,
+          validarTelefono,
+          validarContraseñaFuerte,
+          validarNombre
+} from "../utils/validaciones.js";
 const JWT_SECRET = process.env.JWT_SECRET || "tu_clave_secreta_corta"; // en prod usar env var
 const JWT_EXPIRES_IN = "8h"; // ajusta según necesidad
 
@@ -27,8 +31,6 @@ export const verificarAuth = async (req, res) => {
       return res.status(400).json({ error: "Datos requeridos" });
     }
 
-
-    //const canal = correo ? "email" : "sms";
     // Obtener conexión dedicada porque haremos transacción y locks
     connection = await pool.getConnection();
 
@@ -218,7 +220,7 @@ export const registrarCliente = async (req, res) => {
         message: "Todos los campos son obligatorios"
       });
     }
-
+    //Aca para verificar si ya existe ese correo registrado, si es asi no se puede registrar
     const [correoExiste] = await connection.query(
       "SELECT idUsuario FROM usuario WHERE correoUsuario = ?",
       [correoUsuario]
@@ -229,6 +231,27 @@ export const registrarCliente = async (req, res) => {
         message: "El correo ya está registrado"
       });
     }
+    
+    if (validarNombre(nombreCliente).valido === false) {
+      return res.status(400).json({
+        message: validarNombre(nombreCliente).error
+      });
+    }
+    if (validarContraseñaFuerte(contraseña).valido === false) {
+      return res.status(400).json({
+        message: validarContraseñaFuerte(contraseña).error
+      });
+    };
+    if (validarTelefono(telefonoCliente).valido === false) {
+      return res.status(400).json({
+        message: validarTelefono(telefonoCliente).error
+      });
+    }
+    if (validarEmail(correoUsuario).valido === false) {
+      return res.status(400).json({
+        message: validarEmail(correoUsuario).error
+      });
+    } 
 
     const contraseñaHash = await bcrypt.hash(contraseña, 10);
 
