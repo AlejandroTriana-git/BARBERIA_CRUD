@@ -641,9 +641,3 @@
   "message": "Perfil actualizado correctamente"
 }
 ```
-
-## Observaciones
-
-- Este documento refleja las rutas montadas actualmente en `src/server.js`.
-- Los ejemplos de respuesta son orientativos y siguen la estructura real de los controladores.
-- Varias respuestas del proyecto mezclan las claves `message`, `mensaje`, `error` y `ok`; conviene unificarlas despues.
