@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { validarFecha } from "../utils/validaciones.js"; 
 
 /**
  * ============================================================================
@@ -12,23 +13,22 @@ import pool from "../config/db.js";
 export const obtenerHorariosDisponibles = async (req, res) => {
   try {
     const { idBarbero, fecha, servicios } = req.query;
-    console.log(idBarbero, fecha, servicios);
     if (!idBarbero || !fecha || !servicios) {
       return res.status(400).json({ 
         error: "Faltan parámetros: idBarbero, fecha, servicios" 
       });
     }
 
-    const fechaObj1 = new Date(fecha);
-
-    if (isNaN(fechaObj1.getTime())) {
+    // Validar formato de fecha
+    if (validarFecha(fecha).valido===false) {
       return res.status(400).json({
-        error: "Formato de fecha inválido"
+        error: validarFecha(fecha).error
       });
     }
 
     const hoy = new Date();
     hoy.setHours(0,0,0,0);
+    const fechaObj1 = new Date(fecha);
     fechaObj1.setHours(0,0,0,0);
 
     if (fechaObj1 < hoy) {
@@ -38,7 +38,6 @@ export const obtenerHorariosDisponibles = async (req, res) => {
     }
     // Convertir servicios de string a array de números
     const listaServicios = servicios.split(',').map(Number);
-    console.log(listaServicios);
     // ========================================================================
     // PASO 1: Calcular duración total de los servicios seleccionados
     // ========================================================================
@@ -236,11 +235,26 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
       ? servicios.map(Number) 
       : String(servicios).split(',').map(Number).filter(Boolean);
 
+
+      
     
     if (!idBarbero || !fechaHora || listaServicios.length === 0) {
       return { disponible: false, error: "Parámetros inválidos" };
     }
+    //Verificar idBArbero
+    const [barbero] = await pool.query(
+      `SELECT idBarbero FROM barbero WHERE idBarbero = ?`,
+      [idBarbero]
+    );
 
+    if (barbero.length === 0) {
+      return { disponible: false, error: "Barbero no encontrado" };
+    }
+
+    //Verificar formato de fechaHora
+    
+
+    
     // ========================================================================
     // PASO 1: Calcular duración total
     // ========================================================================

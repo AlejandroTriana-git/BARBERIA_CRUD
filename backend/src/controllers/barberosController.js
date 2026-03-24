@@ -2,7 +2,8 @@ import pool from "../config/db.js";
 import bcrypt from "bcrypt";
 import { validarEmail,
           validarTelefono,
-          validarNombre
+          validarNombre,
+          horaInicio_MenorQue_horaFin
 } from "../utils/validaciones.js";
 //Mejorar respuestas de horario_Barbero, mejorar logica con activo
 
@@ -501,6 +502,12 @@ export const gestionarHorarioBarbero = async (req, res) => {
           error: "Si el horario está activo, horaInicio y horaFin son obligatorios"
         });
       }
+    }
+    if (!horaInicio_MenorQue_horaFin(horaInicio, horaFin) ){
+      return res.status(400).json({
+        error: "horaInicio debe ser menor que horaFin"
+      });
+
     }
 
     const [barberoExiste] = await pool.query(

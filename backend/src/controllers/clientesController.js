@@ -1,5 +1,7 @@
 import pool from "../config/db.js";
-
+import { validarNombre,
+         validarTelefono
+ } from "../utils/validaciones.js";
 
 //Obtener la info del cleinte
 //PERMISO: CLIENTE
@@ -7,6 +9,12 @@ export const obtenerPerfilCliente = async (req, res) => {
   try {
 
     const { idUsuario } = req.usuario;
+
+    if (!idUsuario) {
+      return res.status(400).json({
+        message: "ID de usuario no proporcionado"
+      });
+    }
     const [rows] = await pool.query(
       `SELECT 
         c.nombreCliente,
@@ -46,10 +54,27 @@ export const actualizarPerfilCliente = async (req, res) => {
     const { idUsuario } = req.usuario;
     const { nombreCliente, telefonoCliente } = req.body;
 
+    if (!idUsuario) {
+      return res.status(400).json({
+        message: "ID de usuario no proporcionado"
+      });
+    }
     // verificar que al menos un campo venga
     if (!nombreCliente && !telefonoCliente) {
       return res.status(400).json({
         message: "Debes enviar al menos un campo para actualizar"
+      });
+    }
+
+    //Vlidaciones
+    if (validarNombre(nombreCliente).valido === false) {
+      return res.status(400).json({
+        message: validarNombre(nombreCliente).error
+      });
+    }
+    if (validarTelefono(telefonoCliente).valido === false) {
+      return res.status(400).json({
+        message: validarTelefono(telefonoCliente).error
       });
     }
 
