@@ -1,6 +1,6 @@
 import pool from "../config/db.js";
-import { validarDisponibilidadReserva} from "./disponibilidadController.js"
-
+import { validarDisponibilidadReserva} from "./disponibilidadController.js";
+import { validar24Horas} from "../utils/validaciones.js";
 
 /* 
 
@@ -17,7 +17,11 @@ TENER EN CUENTA LOS SIGUIENTES ESTADOS:
 export const obtenerReservas = async (req, res) => {
   try {
     const idCliente = req.usuario.idPerfil;
-   
+    
+    if (!idCliente) {
+      return res.status(400).json({ error: "ID de cliente no proporcionado" });
+    }
+
     const { estado } = req.query;
     
     
@@ -54,6 +58,15 @@ export const obtenerReservas = async (req, res) => {
       ORDER BY r.fechaReserva DESC`, 
       [idCliente]);
     
+    
+    if (rows.length === 0) {
+      if (estado) {
+        return res.json({ message: `No tienes reservas con estado ${estado}` });
+      }else {
+
+      res.json({ message: "No tienes reservas aun" });
+    }}
+    
     res.json(rows);
   } catch (error) {
     
@@ -72,7 +85,9 @@ export const obtenerReservas = async (req, res) => {
 export const obtenerReservaPorId = async (req, res) => {
   try {
     const { idReserva } = req.params;
-    
+    if (!idReserva) {
+      return res.status(400).json({ error: "ID de reserva no proporcionado" });
+    }
     // Obtener datos básicos de la reserva
     const [[reserva]] = await pool.query(
       `SELECT 
@@ -148,7 +163,8 @@ export const crearReserva = async (req, res) => {
   try {
 
     const { idBarbero, fechaHora, servicios } = req.body;
-    if (!idBarbero || !fechaHora || !servicios || servicios.length === 0) {
+
+    if (!idBarbero || !fechaHora || !Array.isArray(servicios) || servicios.length === 0) {
       return res.status(400).json({ 
         error: "Faltan datos requeridos",
         requeridos: ["idCliente", "idBarbero", "fecha", "servicios (array)"]
@@ -273,6 +289,13 @@ export const actualizarReserva = async (req, res) => {
     const { idReserva } = req.params;
     const { fecha, detalle} = req.body;
     
+    if (!idReserva) {
+      return res.status(400).json({ error: "ID de reserva no proporcionado" });
+    }
+    if (!fecha && !detalle) {
+      return res.status(400).json({ error: "Faltan datos requeridos para actualizar" });
+    }
+
     // Validar que la reserva existe
     const [reservaExistente] = await connection.query(
       "SELECT * FROM reserva WHERE idReserva = ?",
@@ -284,14 +307,11 @@ export const actualizarReserva = async (req, res) => {
     }
     
     // VALIDACIÓN FUTURA: Verificar que falten más de 24 horas
-    const fechaReserva = new Date(reservaExistente[0].fechaReserva);
-    const ahora = new Date();
-    const horasRestantes = (fechaReserva - ahora) / (1000 * 60 * 60);
-    // 
-    if (horasRestantes < 24) {
+    const validacion24Horas = validar24Horas(reservaExistente[0].fechaReserva);
+    if (validacion24Horas.valido === false) {
       return res.status(400).json({ 
-        error: "No se puede modificar la reserva. Faltan menos de 24 horas." 
-    });
+        message: validacion24Horas.error
+      });
     }
     
     await connection.beginTransaction();
@@ -299,10 +319,9 @@ export const actualizarReserva = async (req, res) => {
     // 1. Actualizar datos básicos de la reserva
     await connection.query(
       "UPDATE reserva SET fechaReserva = ?, detalleReserva = ? WHERE idReserva = ?",
-      [fechaReserva || reservaExistente[0].fechaReserva, detalle, idReserva]
+      [fecha || reservaExistente[0].fechaReserva, detalle, idReserva]
     );
     
-
     
     await connection.commit();
     res.json({ message: "Reserva actualizada exitosamente" });
@@ -317,7 +336,7 @@ export const actualizarReserva = async (req, res) => {
 };
 
 // *===========================================================================
-// *Cancelar una reserva, aunque realmente es colocarla en estado = 0 para tener el registro, mas adelnate incluir una tabla para reservasCanceladas 
+// *Cancelar una reserva, aunque realmente es colocarla en estado = 0 para tener el registro 
 // *============================================================================
 
 //PERMISO: CLIENTE
@@ -328,10 +347,16 @@ export const cancelarReserva = async (req, res) => {
     const { idReserva } = req.params;
 
     const {motivo} = req.body;
-    
-
+    // Validaciones básicas
+    if (!idReserva) {
+      return res.status(400).json({ error: "ID de reserva no proporcionado" });
+    }
+    if (!motivo) {
+      return res.status(400).json({ error: "Motivo de cancelación es requerido" });
+    }
     // Iniciar la transacción
     await connection.beginTransaction();
+
 
     // 1. Buscar la reserva
     const [rows] = await connection.query(
@@ -340,10 +365,6 @@ export const cancelarReserva = async (req, res) => {
     );
 
     const reserva = rows[0];
-
-    
-
-    
 
     if (!reserva) {
       await connection.rollback();
@@ -357,14 +378,11 @@ export const cancelarReserva = async (req, res) => {
       });
     }
     // VALIDACIÓN FUTURA: Verificar que falten más de 24 horas
-    const fechaReserva = new Date(reserva.fechaReserva);
-    const ahora = new Date();
-    const horasRestantes = (fechaReserva - ahora) / (1000 * 60 * 60);
-    // 
-    if (horasRestantes < 24) {
-      return res.status(400).json({ 
-        error: "No se puede cancelar la reserva. Faltan menos de 24 horas." 
-    });
+    if (validar24Horas(reserva.fechaReserva).valido === false) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: validar24Horas(reserva.fechaReserva).error
+      });
     }
 
     // 2. Actualizar estado
@@ -399,6 +417,11 @@ export const agendaBarbero = async (req, res) => {
 
     const { idUsuario } = req.usuario;
     
+    if (!idUsuario) {
+      return res.status(400).json({
+        message: "ID de usuario no proporcionado"
+      });
+    }
     const [barbero] = await pool.query(
       "SELECT idBarbero FROM barbero WHERE idUsuario = ?",
       [idUsuario]
@@ -431,7 +454,11 @@ export const agendaBarbero = async (req, res) => {
       ORDER BY r.fechaReserva`,
       [idBarbero]
     );
-
+    if (agenda.length === 0) {
+      return res.json({
+        message: "No tienes reservas programadas"
+      });
+    }
     res.json(agenda);
 
   } catch (error) {

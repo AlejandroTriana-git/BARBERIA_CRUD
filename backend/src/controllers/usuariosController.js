@@ -1,5 +1,9 @@
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
+import {
+  validarContraseñaFuerte,
+  validarEmail
+} from "..utils/validaciones.js";
 
 //PERMISO: ADMIN
 //Seccion para obtener a los usuarios y crear a los usuarios.
@@ -18,6 +22,9 @@ export const obtenerUsuarios = async (req, res) => {
         JOIN rol r ON u.idRol = r.idRol
         LEFT JOIN cliente c ON c.idUsuario = u.idUsuario
         LEFT JOIN barbero b ON b.idUsuario = u.idUsuario`);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "No hay usuarios registrados" });
+    }
     res.status(200).json(rows);
   } catch (error){
     res.status(500).json({error: "Error al obtener usuarios"});
@@ -33,6 +40,25 @@ export const actualizarContraseña = async (req, res) => {
     const idUsuario = req.usuario.idUsuario;
     const { contraseñaAntigua, contraseñaNueva } = req.body;
 
+    // Validar que se proporcionen los campos necesarios
+    if (!idUsuario) {
+      return res.status(400).json({
+        mensaje: "ID de usuario no proporcionado"
+      });
+    }
+    if (!contraseñaAntigua || !contraseñaNueva) {
+      return res.status(400).json({
+        mensaje: "Contraseña antigua y nueva son requeridas"
+      });
+    }
+
+    // Validar fortaleza de la nueva contraseña
+    const validacionContraseña = validarContraseñaFuerte(contraseñaNueva);
+    if (validacionContraseña.valido===false) {
+      return res.status(400).json({
+        mensaje: validacionContraseña.error
+      });
+    }
     const [usuario] = await pool.query(
       "SELECT contraseñaUsuario FROM usuario WHERE idUsuario = ?",
       [idUsuario]
@@ -83,6 +109,25 @@ export const actualizarCorreo = async (req, res) => {
     const idUsuario = req.usuario.idUsuario;
     const { correoNuevo, contraseña } = req.body;
 
+    // Validar que se proporcionen los campos necesarios
+    if (!idUsuario) {
+      return res.status(400).json({
+        mensaje: "ID de usuario no proporcionado"
+      });
+    }
+    if (!correoNuevo || !contraseña) {
+      return res.status(400).json({
+        mensaje: "Correo nuevo y contraseña son requeridos"
+      });
+    }
+
+    // Validar formato del nuevo correo
+    const validacionCorreo = validarEmail(correoNuevo);
+    if (validacionCorreo.valido === false) {
+      return res.status(400).json({
+        mensaje: validacionCorreo.error
+      });
+    }
     // 1 verificar usuario
     const [usuario] = await pool.query(
       "SELECT contraseñaUsuario FROM usuario WHERE idUsuario = ?",

@@ -25,6 +25,10 @@ export const obtenerServicios = async (req, res) => {
 export const obtenerServicioPorId = async (req, res) => {
   try {
     const { idServicio } = req.params;
+    if (!idServicio) {
+      return res.status(400).json({ message: "ID de servicio no proporcionado" });
+    }
+    
     const [rows] = await pool.query(
       "SELECT * FROM servicio WHERE idServicio = ?",
       [idServicio]

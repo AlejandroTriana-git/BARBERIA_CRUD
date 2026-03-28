@@ -81,3 +81,15 @@ export function validarNombre(nombre) {
   return { valido: true };
 
 }
+
+// ✅ FUNCIÓN: Validar que falten más de 24 horas para una fecha/hora dada
+export function validar24Horas(hora) {
+  const fechaReserva = new Date(hora);
+  const ahora = new Date();
+  const horasRestantes = (fechaReserva - ahora) / (1000 * 60 * 60);
+  
+  if (horasRestantes < 24) {
+    return { valido: false, error: "No se puede realizar acciones sobre la reserva. Faltan menos de 24 horas." };
+  }
+  return { valido: true };
+}

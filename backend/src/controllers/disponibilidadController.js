@@ -190,10 +190,11 @@ export const obtenerHorariosDisponibles = async (req, res) => {
         
         // Verificar si este slot está disponible
         const estaDisponible = verificarDisponibilidad(
-          fechaHoraCompleta, 
-          duracionTotal, 
+          fechaHoraCompleta,
+          duracionTotal,
           reservasExistentes,
-          `${horaFin.toString().padStart(2, '0')}:${minutoFin.toString().padStart(2, '0')}:00`
+          horaInicioStr,
+          horaFinStr
         );
         
         if (estaDisponible) {
@@ -230,18 +231,21 @@ export const obtenerHorariosDisponibles = async (req, res) => {
 
 export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servicios, idReservaExcluir = null) => {
   try {
-    // Normalizar servicios a array
-    const listaServicios = Array.isArray(servicios) 
-      ? servicios.map(Number) 
-      : String(servicios).split(',').map(Number).filter(Boolean);
-
-
-      
-    
-    if (!idBarbero || !fechaHora || listaServicios.length === 0) {
+    // Validar parámetros iniciales
+    if (!idBarbero || !fechaHora || !Array.isArray(servicios) || servicios.length === 0) {
       return { disponible: false, error: "Parámetros inválidos" };
     }
-    //Verificar idBArbero
+
+    // Validar formato de fechaHora (YYYY-MM-DD HH:mm:ss o similar)
+    const fechaHoraRegex = /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/;
+    if (!fechaHoraRegex.test(fechaHora)) {
+      return { disponible: false, error: "Formato de fecha/hora inválido (esperado: YYYY-MM-DD HH:mm:ss)" };
+    }
+
+    // Convertir servicios a números si llegan como strings [1,2,3] o ["1","2","3"]
+    const listaServicios = servicios.map(s => Number(s));
+
+    // Verificar idBarbero
     const [barbero] = await pool.query(
       `SELECT idBarbero FROM barbero WHERE idBarbero = ?`,
       [idBarbero]
@@ -251,21 +255,23 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
       return { disponible: false, error: "Barbero no encontrado" };
     }
 
-    //Verificar formato de fechaHora
-    
+    // ========================================================================
+    // PASO 1: Calcular duración total de todos los servicios
+    // ========================================================================
+    let duracionTotal = 0;
 
-    
-    // ========================================================================
-    // PASO 1: Calcular duración total
-    // ========================================================================
-    const [[sumRow]] = await pool.query(
-      `SELECT SUM(s.duracion) AS duracionTotal
-       FROM servicio s
-       WHERE s.idServicio IN (?)`,
-      [listaServicios]
-    );
-    
-    const duracionTotal = sumRow?.duracionTotal || 0;
+    for (const idServicio of listaServicios) {
+      const [sumRows] = await pool.query(
+        `SELECT duracion FROM servicio WHERE idServicio = ?`,
+        [idServicio]
+      );
+
+      if (sumRows.length === 0) {
+        return { disponible: false, duracionTotal: 0, mensaje: "Servicio no encontrado", idServicio };
+      }
+      duracionTotal += sumRows[0].duracion;
+    }
+
     if (duracionTotal === 0) {
       return { disponible: false, duracionTotal: 0, mensaje: "Servicios no válidos" };
     }
@@ -273,21 +279,21 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
     // ========================================================================
     // PASO 2: Validar que el barbero ofrece TODOS los servicios
     // ========================================================================
-    const [[cntRow]] = await pool.query(
-      `SELECT COUNT(*) AS cnt
-       FROM barbero_servicio bs
-       WHERE bs.idBarbero = ? AND bs.idServicio IN (?)`,
-      [idBarbero, listaServicios]
-    );
-    
-    if ((cntRow?.cnt || 0) !== listaServicios.length) {
-      return { 
-        disponible: false, 
-        duracionTotal, 
-        mensaje: "El barbero no ofrece todos los servicios seleccionados" 
-      };
-    }
+    for (const idServicio of listaServicios) {
+      const [cntRow] = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM barbero_servicio
+         WHERE idBarbero = ? AND idServicio = ?`,
+        [idBarbero, idServicio]
+      );
 
+      if (cntRow[0].cnt === 0) {
+        return {
+          disponible: false,
+          duracionTotal,
+          mensaje: "El barbero no ofrece todos los servicios seleccionados"
+        };
+      }
+    }
     // ========================================================================
     // PASO 3: Obtener horario efectivo (excepción o semanal)
     // ========================================================================
@@ -371,17 +377,17 @@ export const validarDisponibilidadReserva = async (idBarbero, fechaHora, servici
     // PASO 5: Verificar disponibilidad
     // ========================================================================
     const disponible = verificarDisponibilidad(
-      fechaHora, 
-      duracionTotal, 
-      reservasExistentes, 
+      fechaHora,
+      duracionTotal,
+      reservasExistentes,
       horaInicioTrabajo,
       horaFinTrabajo
     );
 
-    return { 
-      disponible, 
-      duracionTotal, 
-      conflictos: disponible ? [] : reservasExistentes 
+    return {
+      disponible,
+      duracionTotal,
+      conflictos: disponible ? [] : reservasExistentes
     };
 
   } catch (error) {
