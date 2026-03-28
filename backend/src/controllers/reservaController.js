@@ -307,10 +307,9 @@ export const actualizarReserva = async (req, res) => {
     }
     
     // VALIDACIÓN FUTURA: Verificar que falten más de 24 horas
-    const validacion24Horas = validar24Horas(reservaExistente[0].fechaReserva);
-    if (validacion24Horas.valido === false) {
+    if (validar24Horas(reservaExistente[0].fechaReserva).valido === false) {
       return res.status(400).json({ 
-        message: validacion24Horas.error
+        message: validar24Horas(reservaExistente[0].fechaReserva).error
       });
     }
     
