@@ -231,25 +231,28 @@ export const registrarCliente = async (req, res) => {
         message: "El correo ya está registrado"
       });
     }
-    
-    if (validarNombre(nombreCliente).valido === false) {
+    const validarNombreResult = validarNombre(nombreCliente);
+    if (validarNombreResult.valido === false) {
       return res.status(400).json({
-        message: validarNombre(nombreCliente).error
+        message: validarNombreResult.error
       });
     }
-    if (validarContraseñaFuerte(contraseña).valido === false) {
+    const validarContraseñaResult = validarContraseñaFuerte(contraseña);
+    if (validarContraseñaResult.valido === false) {
       return res.status(400).json({
-        message: validarContraseñaFuerte(contraseña).error
+        message: validarContraseñaResult.error
       });
     };
-    if (validarTelefono(telefonoCliente).valido === false) {
+    const validarTelefonoResult = validarTelefono(telefonoCliente);
+    if (validarTelefonoResult.valido === false) {
       return res.status(400).json({
-        message: validarTelefono(telefonoCliente).error
+        message: validarTelefonoResult.error
       });
     }
-    if (validarEmail(correoUsuario).valido === false) {
+    const validarEmailResult = validarEmail(correoUsuario);
+    if (validarEmailResult.valido === false) {
       return res.status(400).json({
-        message: validarEmail(correoUsuario).error
+        message: validarEmailResult.error
       });
     } 
 

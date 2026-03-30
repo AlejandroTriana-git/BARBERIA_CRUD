@@ -20,9 +20,10 @@ export const obtenerHorariosDisponibles = async (req, res) => {
     }
 
     // Validar formato de fecha
-    if (validarFecha(fecha).valido===false) {
+    const validarFechaResult = validarFecha(fecha);
+    if (validarFechaResult.valido===false) {
       return res.status(400).json({
-        error: validarFecha(fecha).error
+        error: validarFechaResult.error
       });
     }
 

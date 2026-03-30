@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import {
   validarContraseñaFuerte,
   validarEmail
-} from "..utils/validaciones.js";
+} from "../utils/validaciones.js";
 
 //PERMISO: ADMIN
 //Seccion para obtener a los usuarios y crear a los usuarios.

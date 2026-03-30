@@ -66,15 +66,17 @@ export const actualizarPerfilCliente = async (req, res) => {
       });
     }
 
-    //Vlidaciones
-    if (validarNombre(nombreCliente).valido === false) {
+    //Vlidaciones de que los campos enviados sean validos.
+    const validarNombreResult = validarNombre(nombreCliente);
+    if (validarNombreResult.valido === false) {
       return res.status(400).json({
-        message: validarNombre(nombreCliente).error
+        message: validarNombreResult.error
       });
     }
-    if (validarTelefono(telefonoCliente).valido === false) {
+    const validarTelefonoResult = validarTelefono(telefonoCliente);
+    if (validarTelefonoResult.valido === false) {
       return res.status(400).json({
-        message: validarTelefono(telefonoCliente).error
+        message: validarTelefonoResult.error
       });
     }
 

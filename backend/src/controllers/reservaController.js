@@ -307,9 +307,10 @@ export const actualizarReserva = async (req, res) => {
     }
     
     // VALIDACIÓN FUTURA: Verificar que falten más de 24 horas
-    if (validar24Horas(reservaExistente[0].fechaReserva).valido === false) {
+    const validar24HorasResult = validar24Horas(reservaExistente[0].fechaReserva);
+    if (validar24HorasResult.valido === false) {
       return res.status(400).json({ 
-        message: validar24Horas(reservaExistente[0].fechaReserva).error
+        message: validar24HorasResult.error
       });
     }
     
@@ -377,10 +378,11 @@ export const cancelarReserva = async (req, res) => {
       });
     }
     // VALIDACIÓN FUTURA: Verificar que falten más de 24 horas
-    if (validar24Horas(reserva.fechaReserva).valido === false) {
+    const validar24HorasResult = validar24Horas(reserva.fechaReserva);
+    if (validar24HorasResult.valido === false) {
       await connection.rollback();
       return res.status(400).json({
-        message: validar24Horas(reserva.fechaReserva).error
+        message: validar24HorasResult.error
       });
     }
 

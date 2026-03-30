@@ -5,7 +5,6 @@ import { validarEmail,
           validarNombre,
           horaInicio_MenorQue_horaFin
 } from "../utils/validaciones.js";
-//Mejorar respuestas de horario_Barbero, mejorar logica con activo
 
 // Obtener todos los barberos
 
@@ -115,20 +114,22 @@ export const crearBarbero = async (req, res) => {
       });
     }
     // Validaciones
-
-    if (validarNombre(nombreBarbero).valido === false) {
+    const validarNombreResult = validarNombre(nombreBarbero);
+    if (validarNombreResult.valido === false) {
       return res.status(400).json({
-        message: validarNombre(nombreBarbero).error
+        message: validarNombreResult.error
       });
     }
-    if (validarTelefono(telefonoBarbero).valido === false) {
+    const validarTelefonoResult = validarTelefono(telefonoBarbero);
+    if (validarTelefonoResult.valido === false) {
       return res.status(400).json({
-        message: validarTelefono(telefonoBarbero).error
+        message: validarTelefonoResult.error
       });
     }
-    if (validarEmail(correoUsuario).valido === false) {
+    const validarEmailResult = validarEmail(correoUsuario);
+    if (validarEmailResult.valido === false) {
       return res.status(400).json({
-        message: validarEmail(correoUsuario).error
+        message: validarEmailResult.error
       });
     } 
 
@@ -210,15 +211,17 @@ export const actualizarBarbero = async (req, res) => {
         message: "Al menos un campo (nombreBarbero o telefonoBarbero) debe ser proporcionado para actualizar"
       });
     }
-    
-    if (validarNombre(nombreBarbero).valido === false) {
+    // Validaciones de los campos a actualizar, que sean validos
+    const validarNombreResult = validarNombre(nombreBarbero);
+    if (validarNombreResult.valido === false) {
       return res.status(400).json({
-        message: validarNombre(nombreBarbero).error
+        message: validarNombreResult.error
       });
     }
-    if (validarTelefono(telefonoBarbero).valido === false) {
+    const validarTelefonoResult = validarTelefono(telefonoBarbero);
+    if (validarTelefonoResult.valido === false) {
       return res.status(400).json({
-        message: validarTelefono(telefonoBarbero).error
+        message: validarTelefonoResult.error
       });
     }
     const [barberoExiste] = await pool.query(
