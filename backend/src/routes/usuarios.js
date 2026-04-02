@@ -16,8 +16,8 @@ const router = Router();
 //GET /usuarios obtenerUsuarios
 router.get("/", verificarTokenJWT, verificarRol(3), obtenerUsuarios);
 
-//POST /usuarios/contraseña
-router.post("/contraseña", verificarTokenJWT, actualizarContraseña);
+//POST /usuarios/contrasena
+router.post("/contrasena", verificarTokenJWT, actualizarContraseña);
 
 //PUT /usuarios/correo
 router.put("/correo",verificarTokenJWT, actualizarCorreo );

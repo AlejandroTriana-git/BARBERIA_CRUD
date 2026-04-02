@@ -1,77 +1,66 @@
-
 import React, { useState, useEffect } from "react";
-
-
+import apiClient from "../services/apiClient";
 
 function ClientForm({ clientToEdit, onSaveComplete }) {
-  
   const [nombre, setNombre] = useState("");
-  const [correo, setCorreo] = useState("");
   const [telefono, setTelefono] = useState("");
   const [saving, setSaving] = useState(false);
-
-  // URL base (opcional: usa REACT_APP_API_URL en .env)
-  const API = process.env.REACT_APP_API_URL || "http://localhost:3000";
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (clientToEdit) {
-      setNombre(clientToEdit.nombre || "");
-      setCorreo(clientToEdit.correo || "");
-      setTelefono(clientToEdit.telefono || "");
+      setNombre(clientToEdit.nombreCliente || "");
+      setTelefono(clientToEdit.telefonoCliente || "");
     } else {
       setNombre("");
-      setCorreo("");
       setTelefono("");
+      setError("");
     }
   }, [clientToEdit]);
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setError("");
+
     // VALIDACIÓN DE TELÉFONO
     if (!/^[0-9]+$/.test(telefono)) {
-      alert("¡En el campo teléfono solo se aceptan números!");
-      return; // Detener envío
+      setError("¡En el campo teléfono solo se aceptan números!");
+      return;
     }
-    
+
+    if (telefono.length !== 10) {
+      setError("El teléfono debe tener exactamente 10 dígitos");
+      return;
+    }
+
     setSaving(true);
     const payload = {
-      nombre: nombre.trim(),
-      correo: correo.trim(),
-      telefono: telefono.trim(),
+      nombreCliente: nombre.trim(),
+      telefonoCliente: telefono.trim(),
     };
 
-    const isEdit = Boolean(clientToEdit && (clientToEdit.idCliente));
-    const url = isEdit
-      ? `${API}/usuarios/${clientToEdit.idCliente}`
-      : `${API}/usuarios`;
-    const method = isEdit ? "PUT" : "POST";
+    const isEdit = Boolean(clientToEdit && clientToEdit.idCliente);
+    const url = isEdit ? `/clientes` : `/clientes`;
+    const method = isEdit ? "PUT" : "PUT";
 
     try {
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      await apiClient[method.toLowerCase()](url, payload);
+      alert(
+        isEdit
+          ? `Cliente ${nombre} actualizado`
+          : `Cliente ${nombre} creado`
+      );
 
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(errText || `Error ${res.status}`);
-      }
-      
-      const data = await res.json();
-      alert(isEdit ? `Cliente ${data.nombre} actualizado` : `Cliente ${data.nombre} creado`);
-      
-      // limpiar formulario en modo creación
+      // limpiar formulario
       setNombre("");
-      setCorreo("");
       setTelefono("");
+      setError("");
 
-      // notificar al padre (por ejemplo App hará setSelectedClient(null) y refrescará lista)
+      // notificar al padre
       if (typeof onSaveComplete === "function") onSaveComplete();
     } catch (err) {
       console.error("Error al guardar:", err);
-      alert("Error al guardar: " + (err.message || "Error desconocido"));
+      setError("Error al guardar: " + (err.message || "Error desconocido"));
     } finally {
       setSaving(false);
     }
@@ -79,21 +68,15 @@ function ClientForm({ clientToEdit, onSaveComplete }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>{clientToEdit ? "Editar Cliente" : "Agregar Cliente"}</h2>
+      <h2>{clientToEdit ? "Editar Perfil" : "Esta es tu información"}</h2>
+
+      {error && <div style={{ color: "red", marginBottom: "10px" }}>{error}</div>}
 
       <input
         type="text"
         placeholder="Nombre"
         value={nombre}
         onChange={(e) => setNombre(e.target.value)}
-        required
-      />
-
-      <input
-        type="email"
-        placeholder="Correo"
-        value={correo}
-        onChange={(e) => setCorreo(e.target.value)}
         required
       />
 
@@ -108,41 +91,22 @@ function ClientForm({ clientToEdit, onSaveComplete }) {
 
       <div style={{ marginTop: 10 }}>
         <button type="submit" disabled={saving}>
-          {saving ? (clientToEdit ? "Actualizando..." : "Guardando...") : (clientToEdit ? "Actualizar" : "Guardar")}
+          {saving ? "Guardando..." : "Guardar Cambios"}
         </button>
-
 
         {!clientToEdit && (
           <button
             type="button"
             onClick={() => {
-              // cancelar edición: limpiar
               setNombre("");
-              setCorreo("");
               setTelefono("");
+              setError("");
               if (typeof onSaveComplete === "function") onSaveComplete();
             }}
             style={{ marginLeft: 8 }}
             disabled={saving}
           >
             Limpiar
-          </button>
-        )}
-
-        {clientToEdit && (
-          <button
-            type="button"
-            onClick={() => {
-              // cancelar edición: limpiar y notificar al padre
-              setNombre("");
-              setCorreo("");
-              setTelefono("");
-              if (typeof onSaveComplete === "function") onSaveComplete();
-            }}
-            style={{ marginLeft: 8 }}
-            disabled={saving}
-          >
-            Cancelar
           </button>
         )}
       </div>

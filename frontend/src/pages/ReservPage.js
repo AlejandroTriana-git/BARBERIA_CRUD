@@ -1,12 +1,21 @@
 import ReservForm from '../components/ReservForm';
 import ResevList from '../components/ResevList';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 
 function ReservPage() {
 
+  const location = useLocation();
   const [actualizarLista, setActualizarLista] = useState(0);
   const [reservaEditar, setReservaEditar] = useState(null);
+
+  // Recibir la reserva del estado de navegación si viene de ClientPage
+  useEffect(() => {
+    if (location.state?.reservaEditar) {
+      setReservaEditar(location.state.reservaEditar);
+    }
+  }, [location.state]);
 
   const handleReservaCreada = () => {
     // Incrementar el contador para forzar actualización de la lista

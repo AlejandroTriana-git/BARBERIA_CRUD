@@ -1,29 +1,29 @@
 import { useState, useEffect } from 'react';
-
-//Apoyado con IA, especificamente en correcciones frente al consumo de las APIS para esta seccion y el hecho de evitar condiciones en las reservas.
+import apiClient from '../services/apiClient';
+import { useAuth } from '../contexts/AuthContext';
 
 function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
+  const { user } = useAuth();
+
   // Estados para los datos del formulario
-  const [clientes, setClientes] = useState([]);
   const [barberos, setBarberos] = useState([]);
   const [serviciosDisponibles, setServiciosDisponibles] = useState([]);
   const [horariosDisponibles, setHorariosDisponibles] = useState([]);
-  
+
   // Estados del formulario
-  const [idCliente, setIdCliente] = useState('');
   const [idBarbero, setIdBarbero] = useState('');
-  const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]); // Array de idServicio
+  const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
   const [fecha, setFecha] = useState('');
   const [hora, setHora] = useState('');
   const [detalle, setDetalle] = useState('');
-  
+
   const [mensaje, setMensaje] = useState('');
   const [duracionTotal, setDuracionTotal] = useState(0);
   const [cargandoHorarios, setCargandoHorarios] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Cargar clientes y barberos al montar el componente
+  // Cargar barberos al montar el componente
   useEffect(() => {
-    cargarClientes();
     cargarBarberos();
   }, []);
 
@@ -39,8 +39,6 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
   // Cargar servicios cuando se selecciona un barbero
   useEffect(() => {
     if (idBarbero && !reservaEditar) {
-      // Solo cargar servicios si NO estamos editando
-      // (al editar ya se cargan en cargarDatosReserva)
       cargarServiciosBarbero(idBarbero);
     } else if (!idBarbero) {
       setServiciosDisponibles([]);
@@ -71,28 +69,29 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
 
   const cargarDatosReserva = async (reserva) => {
     try {
-      
-      
-      const response = await fetch(`http://localhost:3000/reservas/${reserva.idReserva}`);
-      const data = await response.json();
-      
-      
-      
-      setIdCliente(data.idCliente ?? '');
+      console.log("📝 Cargando datos de reserva:", reserva);
 
-      // ======================================================================
-      // MANEJAR FECHA Y HORA
-      // ======================================================================
-      if (data.fecha) {
-        const fechaStr = String(data.fecha);
+      if (!reserva.idReserva) {
+        console.error("❌ Error: La reserva no tiene idReserva", reserva);
+        setMensaje("Error: No se puede cargar la reserva sin ID");
+        return;
+      }
+
+      const data = await apiClient.get(`/reservas/${reserva.idReserva}/cliente`);
+      console.log("✅ Datos recibidos del servidor:", data);
+
+      setIdBarbero(String(data.idBarbero || ''));
+
+      // Manejar fecha y hora - usar fechaReserva si existe, sino fecha
+      const fechaField = data.fechaReserva || data.fecha;
+      if (fechaField) {
+        const fechaStr = String(fechaField);
 
         if (fechaStr.includes('T')) {
-          // Formato ISO: "2025-12-03T20:00:00.000Z"
           const [isoDate, isoTime] = fechaStr.split('T');
           setFecha(isoDate);
           setHora((isoTime || '').substring(0, 5));
         } else if (fechaStr.includes(' ')) {
-          // Formato: "2025-12-03 20:00:00"
           const [d, t] = fechaStr.split(' ');
           setFecha(d);
           setHora((t || '').substring(0, 5));
@@ -107,91 +106,55 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
 
             setFecha(`${yyyy}-${mm}-${dd}`);
             setHora(`${hh}:${min}`);
-          } else {
-            console.warn('Formato de fecha desconocido:', fechaStr);
-            setFecha('');
-            setHora('');
           }
         }
-      } else {
-        setFecha('');
-        setHora('');
       }
 
-      // Manejar detalle (puede venir como "NULL" string o null)
-      setDetalle(data.detalle && data.detalle !== 'NULL' ? data.detalle : '');
+      // Usar detalleReserva si existe, sino detalle
+      const detailField = data.detalleReserva || data.detalle;
+      setDetalle(detailField && detailField !== 'NULL' ? detailField : '');
 
-      // ======================================================================
-      // CARGAR SERVICIOS Y BARBERO
-      // ======================================================================
+      // Cargar servicios del barbero
       if (data.idBarbero) {
-        
-        setIdBarbero(String(data.idBarbero));
-        
-        // Esperar a que se carguen los servicios del barbero
         try {
-          const respServicios = await fetch(`http://localhost:3000/barberos/${data.idBarbero}/servicios`);
-          const servicios = await respServicios.json();
-          
-          setServiciosDisponibles(servicios);
+          const respServicios = await apiClient.get(`/barberos/${data.idBarbero}/servicios`);
+          setServiciosDisponibles(respServicios || []);
 
-          // Seleccionar los servicios de la reserva
-          if (data.servicios && Array.isArray(data.servicios) && data.servicios.length > 0) {
+          if (data.servicios && Array.isArray(data.servicios)) {
             const serviciosIds = data.servicios.map(s => Number(s.idServicio));
-            
             setServiciosSeleccionados(serviciosIds);
-          } else {
-            console.warn("No hay servicios en la reserva");
-            setServiciosSeleccionados([]);
           }
         } catch (err) {
-          console.error('Error al cargar servicios del barbero:', err);
+          console.error('Error al cargar servicios:', err);
           setServiciosSeleccionados([]);
         }
-      } else {
-        console.warn("No hay idBarbero en la reserva");
-        setServiciosSeleccionados([]);
-        setIdBarbero('');
       }
-    } catch (error) {
-      console.error('Error al cargar datos de reserva:', error);
-    }
-  };
-
-  const cargarClientes = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/usuarios');
-      const data = await response.json();
-      setClientes(data);
-    } catch (error) {
-      console.error('Error al cargar clientes:', error);
+    } catch (err) {
+      console.error('Error al cargar datos de reserva:', err);
+      setMensaje('❌ Error al cargar la reserva: ' + err.message);
     }
   };
 
   const cargarBarberos = async () => {
     try {
-      const response = await fetch('http://localhost:3000/barberos');
-      const data = await response.json();
-      setBarberos(data);
-    } catch (error) {
-      console.error('Error al cargar barberos:', error);
+      const data = await apiClient.get('/barberos');
+      setBarberos(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error al cargar barberos:', err);
+      setMensaje('Error al cargar barberos: ' + err.message);
     }
   };
 
   const cargarServiciosBarbero = async (idBarbero) => {
     try {
-      
-      const response = await fetch(`http://localhost:3000/barberos/${idBarbero}/servicios`);
-      const data = await response.json();
-     
-      setServiciosDisponibles(data);
-      
-      // Solo limpiar si NO estamos editando
+      const data = await apiClient.get(`/barberos/${idBarbero}/servicios`);
+      setServiciosDisponibles(Array.isArray(data) ? data : []);
+
       if (!reservaEditar) {
         setServiciosSeleccionados([]);
       }
-    } catch (error) {
-      console.error('Error al cargar servicios:', error);
+    } catch (err) {
+      console.error('Error al cargar servicios:', err);
       setServiciosDisponibles([]);
     }
   };
@@ -199,16 +162,11 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
   const cargarHorariosDisponibles = async () => {
     setCargandoHorarios(true);
     try {
-      
-      
       const serviciosQuery = serviciosSeleccionados.join(',');
-      const url = `http://localhost:3000/disponibilidad?idBarbero=${idBarbero}&fecha=${fecha}&servicios=${serviciosQuery}`;      
-      
-      const response = await fetch(url);
-      const data = await response.json();
-      
-     
-      
+      const data = await apiClient.get(
+        `/disponibilidad?idBarbero=${idBarbero}&fecha=${fecha}&servicios=${serviciosQuery}`
+      );
+
       if (data.horariosDisponibles) {
         setHorariosDisponibles(data.horariosDisponibles);
         setDuracionTotal(data.duracionTotal ?? 0);
@@ -221,130 +179,89 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
       } else {
         setHorariosDisponibles([]);
         setDuracionTotal(0);
-        setMensaje(data.mensaje || 'No se pudieron cargar los horarios');
+        setMensaje(data.mensaje || 'No hay horarios disponibles');
       }
-    } catch (error) {
-      console.error(' Error al cargar horarios:', error);
-      setMensaje('Error al cargar horarios disponibles');
+    } catch (err) {
+      console.error('Error al cargar horarios:', err);
+      setMensaje('Error: ' + err.message);
       setHorariosDisponibles([]);
     } finally {
       setCargandoHorarios(false);
     }
   };
 
-  // ============================================================================
-  // ✅ FUNCIÓN CORREGIDA: Toggle de servicios
-  // ============================================================================
   const toggleServicio = (idServicio) => {
     setServiciosSeleccionados(prev => {
       if (prev.includes(idServicio)) {
-        // Si ya está seleccionado, quitarlo
         return prev.filter(id => id !== idServicio);
       } else {
-        // Si no está seleccionado, agregarlo
         return [...prev, idServicio];
       }
     });
   };
 
-
-
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!idCliente || !idBarbero || !fecha || !hora || serviciosSeleccionados.length === 0) {
+    if (!idBarbero || !fecha || !hora || serviciosSeleccionados.length === 0) {
       window.alert('Por favor completa todos los campos y selecciona al menos un servicio');
       return;
     }
 
-    // ============================================================================
-    // OBTENER NOMBRES PARA EL CONFIRM
-    // ============================================================================
-    
-    // Buscar el cliente seleccionado
-    const clienteSeleccionado = clientes.find(c => c.idCliente === parseInt(idCliente));//Manera de buscar el nombre de las cosas que ya he traido y que conincidan. (array.find(elemento => condición))
-    const nombreCliente = clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente';
-
-    // Buscar el barbero seleccionado
+    // Obtener nombres para confirmación
     const barberoSeleccionado = barberos.find(b => b.idBarbero === parseInt(idBarbero));
-    const nombreBarbero = barberoSeleccionado ? (barberoSeleccionado.nombreBarbero) : 'Barbero';
+    const nombreBarbero = barberoSeleccionado ? barberoSeleccionado.nombreBarbero : 'Barbero';
 
-    // Buscar los nombres de los servicios seleccionados
     const nombresServicios = serviciosDisponibles
       .filter(s => serviciosSeleccionados.includes(s.idServicio))
       .map(s => s.nombreServicio)
       .join(', ');
 
-    // ============================================================================
-    // MENSAJE DE CONFIRMACIÓN
-    // ============================================================================
-    const mensaje = `¿Confirmar reserva ${nombreCliente}?
+    const mensaje = `¿Confirmar reserva?
 
-      
-      Barbero: ${nombreBarbero}
-      Fecha: ${fecha}
-      Hora: ${hora}
-      Servicios: ${nombresServicios}
-      Duración total: ${duracionTotal} minutos`;
+Barbero: ${nombreBarbero}
+Fecha: ${fecha}
+Hora: ${hora}
+Servicios: ${nombresServicios}
+Duración total: ${duracionTotal} minutos`;
 
     if (!window.confirm(mensaje)) {
-      return; // Si cancela, no continuar
+      return;
     }
 
-    // ============================================================================
-    // PROCESAR LA RESERVA
-    // ============================================================================
+    // Procesar la reserva
     const fechaHoraCompleta = `${fecha} ${hora}:00`;
 
     const reservaData = {
-      idCliente: parseInt(idCliente),
       idBarbero: parseInt(idBarbero),
-      fecha: fechaHoraCompleta,
+      fechaHora: fechaHoraCompleta,
       detalle: detalle || 'Sin comentarios',
       servicios: serviciosSeleccionados
     };
 
     try {
-      const url = reservaEditar 
-        ? `http://localhost:3000/reservas/${reservaEditar.idReserva}`
-        : 'http://localhost:3000/reservas';
-      
-      const method = reservaEditar ? 'PUT' : 'POST';
+      setLoading(true);
 
-      const response = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reservaData)
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        if (reservaEditar) {
-          window.alert('✅ Reserva actualizada exitosamente');
-        } else {
-          window.alert('✅ Reserva creada exitosamente');
-        }
-
-        limpiarFormulario();
-        if (onReservaCreada) onReservaCreada();
-        if (onCancelarEdicion) onCancelarEdicion();
+      if (reservaEditar) {
+        await apiClient.put(`/reservas/${reservaEditar.idReserva}`, reservaData);
+        window.alert('✅ Reserva actualizada exitosamente');
       } else {
-        console.error("❌ Error del servidor:", result);
-        window.alert('❌ Error: ' + (result.error || result.mensaje || 'Error desconocido'));
+        await apiClient.post('/reservas', reservaData);
+        window.alert('✅ Reserva creada exitosamente');
       }
-    } catch (error) {
-      console.error('❌ Error de red:', error);
-      window.alert('❌ Error al procesar la reserva');
+
+      limpiarFormulario();
+      if (onReservaCreada) onReservaCreada();
+      if (onCancelarEdicion) onCancelarEdicion();
+    } catch (err) {
+      console.error('Error al guardar reserva:', err);
+      window.alert('❌ Error: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
-    
-
-    
 
   const limpiarFormulario = () => {
-    setIdCliente('');
     setIdBarbero('');
     setServiciosSeleccionados([]);
     setServiciosDisponibles([]);
@@ -362,19 +279,19 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
   };
 
   return (
-    <div style={{ 
-      border: '2px solid #ddd', 
-      padding: '20px', 
-      marginBottom: '20px', 
+    <div style={{
+      border: '2px solid #ddd',
+      padding: '20px',
+      marginBottom: '20px',
       borderRadius: '8px',
       backgroundColor: reservaEditar ? '#fff9e6' : 'white'
     }}>
       <h2>{reservaEditar ? '✏️ Editar Reserva #' + reservaEditar.idReserva : 'Nueva Reserva'}</h2>
-      
+
       {mensaje && (
-        <div style={{ 
-          padding: '10px', 
-          backgroundColor: mensaje.includes('Error') || mensaje.includes('❌') ? '#ffebee' : '#e8f5e9',
+        <div style={{
+          padding: '10px',
+          backgroundColor: mensaje.includes('Error') ? '#ffebee' : '#e8f5e9',
           borderRadius: '4px',
           marginBottom: '15px',
           fontWeight: 'bold'
@@ -384,37 +301,17 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
       )}
 
       <form onSubmit={handleSubmit}>
-        {/* Seleccionar Cliente */}
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Cliente: *
-          </label>
-          <select 
-            value={idCliente} 
-            onChange={(e) => setIdCliente(e.target.value)}
-            style={{ width: '100%', padding: '8px', fontSize: '14px' }}
-            required
-          >
-            <option value="">-- Selecciona un cliente --</option>
-            {clientes.map(cliente => (
-              <option key={cliente.idCliente} value={cliente.idCliente}>
-                {cliente.nombre} - {cliente.telefono}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Seleccionar Barbero */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
             Barbero: *
           </label>
-          <select 
-            value={idBarbero} 
+          <select
+            value={idBarbero}
             onChange={(e) => setIdBarbero(e.target.value)}
             style={{ width: '100%', padding: '8px', fontSize: '14px' }}
             required
-            disabled={!!reservaEditar}
+            disabled={!!reservaEditar || loading}
           >
             <option value="">-- Selecciona un barbero --</option>
             {barberos.map(barbero => (
@@ -423,11 +320,6 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
               </option>
             ))}
           </select>
-          {reservaEditar && (
-            <small style={{ color: '#666', fontSize: '12px' }}>
-              ℹ️ No puedes cambiar el barbero al editar. Para cambiar barbero, cancela y crea una nueva reserva.
-            </small>
-          )}
         </div>
 
         {/* Servicios disponibles */}
@@ -445,22 +337,16 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
                       checked={serviciosSeleccionados.includes(servicio.idServicio)}
                       onChange={() => toggleServicio(servicio.idServicio)}
                       style={{ marginRight: '10px' }}
-                      disabled={!!reservaEditar}
+                      disabled={!!reservaEditar || loading}
                     />
                     <span>
-                      <strong>{servicio.nombreServicio}</strong> - 
+                      <strong>{servicio.nombreServicio}</strong> -
                       ${servicio.costo} - {servicio.duracion} min
-                      {servicio.puntuacion && ` - ⭐ ${servicio.puntuacion}`}
                     </span>
                   </label>
                 </div>
               ))}
             </div>
-            {reservaEditar && (
-              <small style={{ color: '#666', fontSize: '12px', marginTop: '5px', display: 'block' }}>
-                ℹ️ No puedes cambiar los servicios al editar. Para cambiar servicios, cancela y crea una nueva reserva.
-              </small>
-            )}
             {duracionTotal > 0 && (
               <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
                 ⏱️ Duración total: {duracionTotal} minutos
@@ -479,8 +365,9 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
             min={new Date().toISOString().split('T')[0]}
-            style={{ width: '98%', padding: '8px', fontSize: '14px' }}
+            style={{ width: '100%', padding: '8px', fontSize: '14px' }}
             required
+            disabled={loading}
           />
         </div>
 
@@ -500,6 +387,7 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
                 onChange={(e) => setHora(e.target.value)}
                 style={{ width: '100%', padding: '8px', fontSize: '14px' }}
                 required
+                disabled={loading}
               >
                 <option value="">-- Selecciona un horario --</option>
                 {horariosDisponibles.map(horario => (
@@ -526,12 +414,13 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
             onChange={(e) => setDetalle(e.target.value)}
             placeholder="Escribe algún detalle adicional..."
             style={{ width: '99%', padding: '8px', fontSize: '14px', minHeight: '80px' }}
+            disabled={loading}
           />
         </div>
 
         {/* Botones */}
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
+          <button
             type="submit"
             style={{
               backgroundColor: reservaEditar ? '#FF9800' : '#4CAF50',
@@ -543,11 +432,10 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
               fontSize: '16px',
               fontWeight: 'bold'
             }}
+            disabled={loading}
           >
-            {reservaEditar ? 'Actualizar Reserva' : 'Crear Reserva'}
+            {loading ? 'Guardando...' : (reservaEditar ? 'Actualizar Reserva' : 'Crear Reserva')}
           </button>
-
-
 
           {!reservaEditar && (
             <button
@@ -560,16 +448,16 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                fontSize: '16px'}}>
-                  Limpiar
-          </button>
-
-
+                fontSize: '16px'
+              }}
+              disabled={loading}
+            >
+              Limpiar
+            </button>
           )}
-          
 
           {reservaEditar && (
-            <button 
+            <button
               type="button"
               onClick={handleCancelar}
               style={{
@@ -581,6 +469,7 @@ function ReservForm({ reservaEditar, onReservaCreada, onCancelarEdicion }) {
                 cursor: 'pointer',
                 fontSize: '16px'
               }}
+              disabled={loading}
             >
               ❌ Cancelar
             </button>

@@ -1,93 +1,88 @@
-// Importamos React y los hooks necesarios
 import React, { useEffect, useState } from "react";
+import apiClient from "../services/apiClient";
 
 /**
  * Componente ClientList
  * -----------------------
- * Muestra la lista de clients obtenidos desde la API del backend.
- * Permite eliminar clients y notificar al componente padre cuando se desea editar uno.
+ * Muestra la lista de clientes obtenidos desde la API del backend.
+ * Permite eliminar clientes y notificar al componente padre cuando se desea editar uno.
  *
  * Props:
  *  - onEdit: función callback que recibe el cliente seleccionado para editar.
  */
 function ClientList({ onEdit }) {
   // -------------------- ESTADO --------------------
-  // clients almacena el listado de clients cargados desde la API.
   const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // -------------------- FUNCIÓN DE CARGA --------------------
-  // Esta función obtiene la lista completa de clients desde el backend.
-  const fetchClients = () => {
-    fetch("http://localhost:3000/usuarios")
-      .then((res) => res.json()) // Convertimos la respuesta a JSON
-      .then((data) => setClients(data)) // Guardamos los clients en el estado
-      .catch((err) => console.error("Error:", err)); // Mostramos errores si ocurren
+  const fetchClients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiClient.get("/clientes");
+      setClients(data || []);
+    } catch (err) {
+      console.error("Error al obtener clientes:", err);
+      setError(err.message || "Error al cargar clientes");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // -------------------- useEffect --------------------
-  // Este efecto se ejecuta una sola vez al montar el componente ([] como dependencia vacía)
-  // Llama a fetchClients() para cargar los datos iniciales desde la API.
   useEffect(() => {
     fetchClients();
   }, []);
 
   // -------------------- FUNCIÓN ELIMINAR --------------------
-  // handleDelete recibe el ID del cliente a eliminar.
-  // Pide confirmación al usuario y, si acepta, envía la solicitud DELETE al backend.
-  const handleDelete = (id) => {
-    // Confirmación para evitar eliminaciones accidentales
+  const handleDelete = async (id) => {
     if (!window.confirm("¿Seguro que deseas eliminar este cliente?")) return;
 
-    // Petición DELETE al servidor
-    fetch(`http://localhost:3000/usuarios/${id}`, {
-      method: "DELETE",
-    })
-      .then((res) => res.json())
-      .then(() => {
-        alert("Cliente eliminado"); // Mensaje de confirmación
-        fetchClients(); // Recargamos la lista para reflejar el cambio
-      })
-      .catch((err) => console.error("Error al eliminar:", err));
+    try {
+      await apiClient.delete(`/clientes/${id}`);
+      setClients(clients.filter((c) => c.idCliente !== id));
+      alert("Cliente eliminado");
+    } catch (err) {
+      console.error("Error al eliminar:", err);
+      alert("Error al eliminar: " + err.message);
+    }
   };
 
   // -------------------- RENDERIZADO --------------------
-  // Muestra un mensaje si no hay clients o una tabla si existen registros.
   return (
     <div>
       <h2>Lista de Clientes</h2>
 
-      {/* Si no hay clients, mostrar un mensaje */}
-      {clients.length === 0 ? (
-        <p>No hay clients registrados.</p>
+      {loading && <p>Cargando...</p>}
+      {error && <div style={{ color: "red" }}>Error: {error}</div>}
+
+      {!loading && clients.length === 0 ? (
+        <p>No hay clientes registrados.</p>
       ) : (
-        // Si hay clients, renderizamos una tabla HTML sencilla
         <table border="1" cellPadding="5">
           <thead>
             <tr>
               <th>Nombre</th>
               <th>Correo</th>
-              <th>telefono</th>
-              
+              <th>Teléfono</th>
+              <th>Acciones</th>
             </tr>
           </thead>
 
           <tbody>
-            {/* Recorremos el arreglo de clients */}
-            {clients.map((emp) => (
-              // Cada fila debe tener una key única (usamos emp._id o emp.id)
-              <tr key={emp.idCliente}>
-                <td>{emp.nombre}</td>
-                <td>{emp.correo}</td>
-                <td>{emp.telefono}</td>
-                
-                <td>
-                  {/* Botón Editar: llama a onEdit pasando el cliente seleccionado */}
-                  <button onClick={() => onEdit(emp)}>Editar</button>
+            {clients.map((client) => (
+              <tr key={client.idCliente}>
+                <td>{client.nombreCliente}</td>
+                <td>{client.correoUsuario}</td>
+                <td>{client.telefonoCliente}</td>
 
-                  {/* Botón Eliminar: llama a handleDelete con el ID del cliente */}
+                <td>
+                  <button onClick={() => onEdit(client)}>Editar</button>
                   <button
-                    onClick={() => handleDelete(emp.idCliente)}
-                    style={{ marginLeft: "10px" }} // Espacio visual entre botones
+                    onClick={() => handleDelete(client.idCliente)}
+                    style={{ marginLeft: "10px" }}
                   >
                     Eliminar
                   </button>
@@ -101,5 +96,4 @@ function ClientList({ onEdit }) {
   );
 }
 
-// Exportamos el componente para que pueda usarse en App.js u otros componentes
 export default ClientList;

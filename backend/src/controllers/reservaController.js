@@ -62,11 +62,11 @@ export const obtenerReservas = async (req, res) => {
     if (rows.length === 0) {
       if (estado) {
         return res.json({ message: `No tienes reservas con estado ${estado}` });
-      }else {
+      } else {
+        return res.json({ message: "No tienes reservas aun" });
+      }
+    }
 
-      res.json({ message: "No tienes reservas aun" });
-    }}
-    
     res.json(rows);
   } catch (error) {
     
@@ -163,10 +163,10 @@ export const crearReserva = async (req, res) => {
   try {
 
     const { idBarbero, fechaHora, servicios } = req.body;
-
+    console.log("Datos recibidos para crear reserva:", { idBarbero, fechaHora, servicios });
     if (!idBarbero || !fechaHora || !Array.isArray(servicios) || servicios.length === 0) {
       return res.status(400).json({ 
-        error: "Faltan datos requeridos",
+        error: "Faltan datosssss requeridos",
         requeridos: ["idCliente", "idBarbero", "fecha", "servicios (array)"]
       });
     }

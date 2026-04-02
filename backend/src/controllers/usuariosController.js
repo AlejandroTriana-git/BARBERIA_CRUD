@@ -39,6 +39,7 @@ export const actualizarContraseña = async (req, res) => {
 
     const idUsuario = req.usuario.idUsuario;
     const { contraseñaAntigua, contraseñaNueva } = req.body;
+    console.log("Esto es lo que llega al controlador:", { idUsuario, contraseñaAntigua, contraseñaNueva });
 
     // Validar que se proporcionen los campos necesarios
     if (!idUsuario) {
@@ -56,7 +57,7 @@ export const actualizarContraseña = async (req, res) => {
     const validacionContraseña = validarContraseñaFuerte(contraseñaNueva);
     if (validacionContraseña.valido===false) {
       return res.status(400).json({
-        mensaje: validacionContraseña.error
+        mensaje: "error en contraseña nueva: " + validacionContraseña.error
       });
     }
     const [usuario] = await pool.query(
@@ -65,6 +66,7 @@ export const actualizarContraseña = async (req, res) => {
     );
 
     if (usuario.length === 0) {
+      console.log("Usuario no encontrado para idUsuario:", idUsuario);
       return res.status(404).json({
         mensaje: "Usuario no encontrado"
       });

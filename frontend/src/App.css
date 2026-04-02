@@ -1,3 +1,82 @@
+/* Navbar */
+.navbar {
+  background-color: #333;
+  padding: 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.nav-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  max-width: 100%;
+}
+
+.nav-logo {
+  color: white;
+  margin: 0;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  margin-left: 40px;
+}
+
+.nav-item {
+  margin: 0;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.nav-link:hover {
+  color: #667eea;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-info {
+  color: white;
+  font-size: 14px;
+}
+
+.btn-logout {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 14px;
+}
+
+.btn-logout:hover {
+  background-color: #c0392b;
+}
+
+.nav-auth-links {
+  display: flex;
+  gap: 20px;
+}
+
+/* Main content */
 body {
   font-family: "Segoe UI", sans-serif;
   background-color: #f8f9fa;
@@ -5,15 +84,17 @@ body {
   padding: 20px;
 }
 
-form, table {
+form,
+table {
   background: white;
   border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   padding: 20px;
   margin-bottom: 20px;
 }
 
-input, button {
+input,
+button {
   margin: 5px;
   padding: 8px;
   border-radius: 5px;

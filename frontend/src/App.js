@@ -1,31 +1,69 @@
 
-
-
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import ClientPage from './pages/ClientPage';
 import ReservPage from './pages/ReservPage';
-
-// import OtraPagina from './pages/OtraPagina'; // Cuando la crees
+import AdminPage from './pages/AdminPage';
+import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 
 function App() {
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <p>Cargando aplicación...</p>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <div className="App">
-        <Navbar/>
-        
+        <Navbar />
+
         <main className="main-content">
           <Routes>
-            {/* Ruta principal - Client */}
-            <Route path="/" element={<ClientPage />} />
-            
-            {/* Ruta - Reservas*/}
-            <Route path="/reservas" element={<ReservPage />} /> 
-            
-            {/* Ruta 404 - Página no encontrada */}
+            {/* Rutas públicas de autenticación */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Rutas privadas - Cliente */}
+            <Route
+              path="/"
+              element={
+                <PrivateRoute requiredRole={1}>
+                  <ClientPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/reservas"
+              element={
+                <PrivateRoute requiredRole={1}>
+                  <ReservPage />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Rutas privadas - Admin */}
+            <Route
+              path="/admin"
+              element={
+                <PrivateRoute requiredRole={3}>
+                  <AdminPage />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Ruta 404 */}
             <Route path="*" element={
-              <div>
+              <div style={{ textAlign: 'center', padding: '50px' }}>
                 <h2>Página no encontrada</h2>
                 <p>La página que buscas no existe.</p>
               </div>
