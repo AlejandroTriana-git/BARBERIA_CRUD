@@ -12,11 +12,11 @@ import { validarEmail,
 export const obtenerBarberos = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT 
-        idBarbero,
-        nombreBarbero,
-        telefonoBarbero
-        FROM barbero`);
+      `SELECT b.idBarbero,
+              b.nombreBarbero,
+              b.telefonoBarbero,
+              u.correoUsuario FROM barbero b
+        JOIN usuario u ON b.idUsuario = u.idUsuario`);
 
       if (rows.length === 0) {
         return res.status(404).json({
@@ -268,7 +268,7 @@ export const asignarServiciosBarbero = async (req, res) => {
   try {
 
     const { idBarbero, servicios } = req.body;
-
+    console.log("Lo que llega al backend en servicios:", servicios);
     if (!idBarbero || !Array.isArray(servicios) || servicios.length === 0) {
       return res.status(400).json({
         message: "Datos inválidos"
@@ -505,12 +505,11 @@ export const gestionarHorarioBarbero = async (req, res) => {
           error: "Si el horario está activo, horaInicio y horaFin son obligatorios"
         });
       }
-    }
-    if (!horaInicio_MenorQue_horaFin(horaInicio, horaFin) ){
-      return res.status(400).json({
-        error: "horaInicio debe ser menor que horaFin"
-      });
-
+      if (!horaInicio_MenorQue_horaFin(horaInicio, horaFin)) {
+        return res.status(400).json({
+          error: "horaInicio debe ser menor que horaFin"
+        });
+      }
     }
 
     const [barberoExiste] = await pool.query(

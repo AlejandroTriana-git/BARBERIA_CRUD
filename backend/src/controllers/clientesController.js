@@ -32,7 +32,7 @@ export const obtenerPerfilCliente = async (req, res) => {
         message: "Cliente no encontrado"
       });
     }
-
+    console.log("loque voy a enviar al frontend:", rows[0]);
     res.json(rows[0]);
 
   } catch (error) {

@@ -95,8 +95,12 @@ const apiClient = {
     });
   },
 
-  delete: (endpoint, options = {}) => {
-    return fetchWithToken(endpoint, { ...options, method: "DELETE" });
+  delete: (endpoint, data = {}, options = {}) => {
+    const config = { ...options, method: "DELETE" };
+    if (Object.keys(data).length > 0) {
+      config.body = JSON.stringify(data);
+    }
+    return fetchWithToken(endpoint, config);
   },
 };
 

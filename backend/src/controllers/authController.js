@@ -187,10 +187,10 @@ export const verificarAuth = async (req, res) => {
     (`Verificación exitosa - usuario ${idUsuario}`);
 
     // Generar token fuera de la transacción (ya hicimos commit)
-    const payload = { idUsuario: idUsuario, rol: rolNumero , idPerfil: idPerfil};
+    const payload = { idUsuario: idUsuario, rol: rolNumero , idPerfil: idPerfil, email: correo};
     const tokenWeb = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-    const user = { idUsuario: idUsuario, rol: rolNumero, idPerfil: idPerfil };
+    const user = { idUsuario: idUsuario, rol: rolNumero, idPerfil: idPerfil , email: correo};
     return res.status(200).json({ message: "Verificación exitosa", tokenWeb, JWT_EXPIRES_IN, user });
 
   } catch (error) {
