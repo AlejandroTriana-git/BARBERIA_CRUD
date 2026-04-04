@@ -28,9 +28,12 @@ function AdminPage() {
   const [idBarberoHorario, setIdBarberoHorario] = useState("");
 
   useEffect(() => {
-    if (activeTab === "barberos") cargarBarberos();
-    else if (activeTab === "servicios") cargarServicios();
-    else if (activeTab === "clientes") cargarUsuarios();
+    // Cargar datos iniciales
+    cargarBarberos();
+    cargarServicios();
+
+    // Luego cargar según la pestaña
+    if (activeTab === "clientes") cargarUsuarios();
   }, [activeTab]);
 
   const cargarBarberos = async () => {
@@ -148,7 +151,7 @@ function AdminPage() {
       {/* Contenido por pestaña */}
       <div style={{ background: "white", padding: "20px", borderRadius: "10px", minHeight: "400px" }}>
         {activeTab === "perfil" && <PerfilUsuario />}
-        {activeTab === "barberos" && <TabBarberos barberos={barberos} servicios={servicios} cargando={cargandoBarberos} barbaroSeleccionado={barbaroSeleccionado} setBarberoSeleccionado={setBarberoSeleccionado} setBarberoEditar={setBarberoEditar} setShowFormBarbero={setShowFormBarbero} showFormBarbero={showFormBarbero} onRefresh={cargarBarberos} cargarHorariosBarbero={cargarHorariosBarbero} horariosPorBarbero={horariosPorBarbero} />}
+        {activeTab === "barberos" && <TabBarberos barbaroEditar={barbaroEditar} barberos={barberos} servicios={servicios} cargando={cargandoBarberos} barbaroSeleccionado={barbaroSeleccionado} setBarberoSeleccionado={setBarberoSeleccionado} setBarberoEditar={setBarberoEditar} setShowFormBarbero={setShowFormBarbero} showFormBarbero={showFormBarbero} onRefresh={cargarBarberos} cargarHorariosBarbero={cargarHorariosBarbero} horariosPorBarbero={horariosPorBarbero} />}
         {activeTab === "servicios" && <TabServicios servicios={servicios} cargando={cargandoServicios} setServicioEditar={setServicioEditar} setShowFormServicio={setShowFormServicio} servicioEditar={servicioEditar} showFormServicio={showFormServicio} onRefresh={cargarServicios} />}
         {activeTab === "clientes" && <TabClientes usuarios={usuarios} cargando={cargandoUsuarios} />}
       </div>
@@ -157,7 +160,7 @@ function AdminPage() {
 }
 
 // Tab Barberos
-function TabBarberos({ barberos, servicios, cargando, barbaroSeleccionado, setBarberoSeleccionado, setBarberoEditar, setShowFormBarbero, showFormBarbero, onRefresh, cargarHorariosBarbero, horariosPorBarbero }) {
+function TabBarberos({ barbaroEditar, barberos, servicios, cargando, barbaroSeleccionado, setBarberoSeleccionado, setBarberoEditar, setShowFormBarbero, showFormBarbero, onRefresh, cargarHorariosBarbero, horariosPorBarbero }) {
   const [showServicios, setShowServicios] = useState(false);
 
   if (barbaroSeleccionado) {
@@ -183,7 +186,7 @@ function TabBarberos({ barberos, servicios, cargando, barbaroSeleccionado, setBa
         </button>
       </div>
 
-      {showFormBarbero && <FormBarbero barbaroEditar={null} onClose={() => setShowFormBarbero(false)} onSuccess={() => { setShowFormBarbero(false); onRefresh(); }} />}
+      {showFormBarbero && <FormBarbero barbaroEditar={barbaroEditar} onClose={() => setShowFormBarbero(false)} onSuccess={() => { setShowFormBarbero(false); onRefresh(); setBarberoEditar(null); }} />}
 
       {cargando ? <p>Cargando barberos...</p> : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -359,7 +362,7 @@ function FormBarbero({ barbaroEditar, onClose, onSuccess }) {
           telefonoBarbero: telefono
         });
         setSuccess("✅ Barbero actualizado");
-        setTimeout(() => { onSuccess(); }, 1500);
+        setTimeout(() => { onSuccess(); }, 1000);
       } else {
         // Crear: enviar todo incluyendo email
         const response = await apiClient.post("/barberos", {
@@ -368,7 +371,7 @@ function FormBarbero({ barbaroEditar, onClose, onSuccess }) {
           correoUsuario: email
         });
         setSuccess(`✅ Barbero creado. Contraseña temporal: ${response.contraseñaTemporal}`);
-        setTimeout(() => { onSuccess(); }, 3000);
+        
       }
     } catch (err) {
       setError(err.message);

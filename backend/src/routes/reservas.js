@@ -1,11 +1,12 @@
 import { Router} from "express";
-import { 
+import {
   obtenerReservas,
   obtenerReservaPorId,
   crearReserva,
   actualizarReserva,
   cancelarReserva,
-  agendaBarbero
+  agendaBarbero,
+  cambiarEstadoReserva
 } from "../controllers/reservaController.js";
 
 import { verificarTokenJWT } from "../middleware/auth.js";
@@ -17,7 +18,7 @@ const router = Router();
 router.get("/", verificarTokenJWT, verificarRol(1), obtenerReservas);
 
 // GET /reservas/:idReserva - Obtener una reserva específica con detalles
-router.get("/:idReserva/cliente", verificarTokenJWT, verificarRol(1), obtenerReservaPorId);
+router.get("/:idReserva/cliente", verificarTokenJWT, verificarRol(1,2), obtenerReservaPorId);
 
 // POST /reservas - Crear una nueva reserva
 router.post("/", verificarTokenJWT, verificarRol(1), crearReserva);
@@ -34,5 +35,8 @@ router.put("/:idReserva/cancelar", verificarTokenJWT, verificarRol(1), cancelarR
  
 //GET /reservas/agenda - Obtener la agenda del barbero por parte del propio barbero
  router.get("/agenda", verificarTokenJWT, verificarRol(2), agendaBarbero);
- 
+
+// PUT /reservas/:idReserva/estado - Cambiar estado (barbero marca como completada o no asistió)
+router.put("/:idReserva/estado", verificarTokenJWT, verificarRol(2), cambiarEstadoReserva);
+
 export default router;

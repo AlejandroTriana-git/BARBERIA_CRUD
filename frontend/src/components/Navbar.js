@@ -40,7 +40,16 @@ function Navbar() {
                   </li>
                   <li className="nav-item">
                     <Link to="/reservas" className="nav-link">
-                      Reservas
+                      Reservar
+                    </Link>
+                  </li>
+                </>
+              )}
+              {user?.rol === 2 && (
+                <>
+                  <li className="nav-item">
+                    <Link to="/barbero" className="nav-link">
+                      Barbero
                     </Link>
                   </li>
                 </>

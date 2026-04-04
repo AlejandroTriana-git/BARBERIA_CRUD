@@ -14,7 +14,7 @@ function ClientPage() {
 
       {/* Sección de Reservas */}
       <div style={{ marginTop: "40px" }}>
-        <h2>Mis Reservas</h2>
+        
         <ResevList
           actualizarLista={actualizarLista}
           onEditarReserva={(reserva) => {

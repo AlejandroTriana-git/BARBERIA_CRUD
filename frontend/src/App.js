@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import ClientPage from './pages/ClientPage';
 import ReservPage from './pages/ReservPage';
 import AdminPage from './pages/AdminPage';
+import BarberoPage from './pages/BarberoPage';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 
@@ -57,6 +58,16 @@ function App() {
               element={
                 <PrivateRoute requiredRole={3}>
                   <AdminPage />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Rutas privadas - Barbero */}
+            <Route
+              path="/barbero"
+              element={
+                <PrivateRoute requiredRole={2}>
+                  <BarberoPage />
                 </PrivateRoute>
               }
             />

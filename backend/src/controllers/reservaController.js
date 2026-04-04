@@ -81,7 +81,7 @@ export const obtenerReservas = async (req, res) => {
  * OBTENER UNA RESERVA POR ID
  * ============================================================================
  */
-// PERMISO:  CLIENTE
+// PERMISO:  CLIENTE y barbero
 export const obtenerReservaPorId = async (req, res) => {
   try {
     const { idReserva } = req.params;
@@ -443,6 +443,7 @@ export const agendaBarbero = async (req, res) => {
           c.nombreCliente,
           r.fechaReserva,
           r.detalleReserva,
+          r.estadoReserva,
           GROUP_CONCAT(s.nombreServicio SEPARATOR ', ') AS servicios,
           SUM(s.duracion) AS duracionTotal,
           SUM(s.costo) AS costoTotal
@@ -474,15 +475,53 @@ export const agendaBarbero = async (req, res) => {
 };
 
 
+//PERMISO:  BARBERO
+export const cambiarEstadoReserva = async (req, res) => {
+  try {
+    const { idReserva } = req.params;
+    const { estado } = req.body;
+    console.log("Datos recibidos para cambiar estado de reserva:", { idReserva, estado });
+    if (!idReserva || typeof estado === "undefined") {
+      return res.status(400).json({ error: "Faltan datos requeridos" });
+    }
 
+    // Validar que el nuevo estado sea válido
+    const estadosValidos = [2, 3];
+    if (!estadosValidos.includes(parseInt(estado))) {
+      return res.status(400).json({ error: "Estado no válido" });
+    }
 
+    // Verificar que la reserva existe y pertenece al barbero
+    const [reserva] = await pool.query(
+      `SELECT r.idReserva
+        FROM reserva r
+        JOIN barbero b ON r.idBarbero = b.idBarbero
+        WHERE r.idReserva = ? AND b.idUsuario = ?`,
+      [idReserva, req.usuario.idUsuario]
+    );
 
-/**
- * ============================================================================
- * ELIMINAR RESERVA PERMANENTEMENTE (Solo para administrador)
- * ============================================================================
- * Solo debe ser accesible para administradores o para limpiar datos antiguos
- */
+    if (reserva.length === 0) {
+      return res.status(404).json({ error: "Reserva no encontrada" });
+    }
+    // Actualizar el estado de la reserva
+    await pool.query(
+      "UPDATE reserva SET estadoReserva = ? WHERE idReserva = ?",
+      [parseInt(estado), idReserva]
+    );
+
+    res.json({ message: "Estado de reserva actualizado exitosamente" });
+
+  } catch (error) {
+    console.error("Error al actualizar estado de reserva:", error.message);
+    res.status(500).json({ error: "Error al actualizar estado de reserva" });
+  }
+};
+
+//  * ============================================================================
+//  * ELIMINAR RESERVA PERMANENTEMENTE (Solo para administrador)
+//  * ============================================================================
+//  * Solo debe ser accesible para administradores o para limpiar datos antiguos
+//  */
 /* export const eliminarReservaPermanente = async (req, res) => {
   const connection = await pool.getConnection();
   
