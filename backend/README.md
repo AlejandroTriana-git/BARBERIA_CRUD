@@ -1,67 +1,102 @@
 # API Backend - Barberia CRUD
 
+Documentacion actualizada segun la implementacion real del backend (`src/routes` + `src/controllers`).
+
 ## Base URL
 
 `http://localhost:3000`
 
-## Autenticacion
+## CORS
 
-- Las rutas protegidas requieren encabezado `Authorization: Bearer <token>`.
-- Roles usados en el backend:
+El backend permite origen unicamente desde:
+
+`http://localhost:3002`
+
+## Autenticacion y roles
+
+- Las rutas protegidas requieren `Authorization: Bearer <token>`.
+- JWT expira en `8h`.
+- Roles:
 - `1`: cliente
 - `2`: barbero
 - `3`: administrador
 
-## Rutas
+## Validaciones estrictas activas
 
-### 1. Verificar autenticacion
+Estas validaciones estan implementadas en `src/utils/validaciones.js` y usadas por varios controladores:
 
-1. Nombre: Verificar autenticacion
-2. URL: `http://localhost:3000/auth/verificar`
-3. Metodo: `POST`
-4. Que hace: Inicia sesion, valida correo y contrasena, controla intentos fallidos y devuelve un JWT.
-5. Que recibe:
+- Email:
+- Formato valido
+- Maximo 100 caracteres
+- Telefono:
+- Exactamente 10 digitos (se ignoran caracteres no numericos antes de validar)
+- Nombre:
+- Obligatorio
+- Longitud entre 2 y 100 caracteres
+- Contrasena fuerte:
+- Minimo 8 caracteres
+- Al menos 1 mayuscula
+- Al menos 1 minuscula
+- Al menos 1 numero
+- Al menos 1 caracter especial
+- Fecha (`YYYY-MM-DD`) valida para disponibilidad
+- Regla de 24 horas para actualizar/cancelar reservas
+
+## Reglas generales de respuesta de error
+
+Segun endpoint, los errores pueden venir como `error`, `message` o `mensaje`.
+
+---
+
+## Endpoints
+
+## 1) Auth
+
+### POST `/auth/verificar` (publico)
+
+Inicia sesion, aplica control de intentos fallidos y bloqueo temporal.
+
+Body:
 
 ```json
 {
   "correo": "cliente@correo.com",
-  "contrasena": "123456"
+  "contraseña": "Abc12345!"
 }
 ```
 
-6. Que responde:
+Respuesta exitosa (200):
 
 ```json
 {
-  "message": "Verificacion exitosa",
+  "message": "Verificación exitosa",
   "tokenWeb": "jwt",
   "JWT_EXPIRES_IN": "8h",
   "user": {
     "idUsuario": 1,
     "rol": 1,
-    "idPerfil": 5
+    "idPerfil": 5,
+    "email": "cliente@correo.com"
   }
 }
 ```
 
-### 2. Registrar cliente
+### POST `/auth/registrarCliente` (publico)
 
-1. Nombre: Registrar cliente
-2. URL: `http://localhost:3000/auth/registrarCliente`
-3. Metodo: `POST`
-4. Que hace: Crea un usuario con rol cliente y su perfil en la tabla `cliente`.
-5. Que recibe:
+Registra usuario rol cliente + perfil de cliente.
+
+Body:
 
 ```json
 {
   "nombreCliente": "Jose",
   "telefonoCliente": "3001234567",
   "correoUsuario": "jose@correo.com",
-  "contrasena": "123456"
+  "contraseña": "Abc12345!"
 }
 ```
 
-6. Que responde:
+Respuesta (201):
 
 ```json
 {
@@ -69,133 +104,57 @@
 }
 ```
 
-### 3. Obtener usuarios
+## 2) Usuarios
 
-1. Nombre: Obtener usuarios
-2. URL: `http://localhost:3000/usuarios`
-3. Metodo: `GET`
-4. Que hace: Lista los usuarios del sistema con nombre, rol y correo.
-5. Que responde:
+### GET `/usuarios` (rol 3)
 
-```json
-[
-  {
-    "idUsuario": 1,
-    "nombreRol": "cliente",
-    "nombre": "Jose",
-    "correoUsuario": "jose@correo.com"
-  }
-]
-```
+Lista usuarios.
 
-### 4. Actualizar contrasena
+### POST `/usuarios/contrasena` (roles 1, 2, 3)
 
-1. Nombre: Actualizar contrasena
-2. URL: `http://localhost:3000/usuarios/contraseña`
-3. Metodo: `POST`
-4. Que hace: Cambia la contrasena del usuario autenticado.
-5. Que recibe:
+Actualiza contrasena del usuario autenticado.
+
+Body:
 
 ```json
 {
-  "contrasenaAntigua": "123456",
-  "contrasenaNueva": "654321"
+  "contraseñaAntigua": "Actual123!",
+  "contraseñaNueva": "Nueva123!"
 }
 ```
 
-6. Que responde:
+### PUT `/usuarios/correo` (roles 1, 2, 3)
 
-```json
-{
-  "mensaje": "Contraseña actualizada correctamente"
-}
-```
+Actualiza correo del usuario autenticado, validando contrasena actual.
 
-### 5. Actualizar correo
-
-1. Nombre: Actualizar correo
-2. URL: `http://localhost:3000/usuarios/correo`
-3. Metodo: `PUT`
-4. Que hace: Cambia el correo del usuario autenticado luego de validar la contrasena.
-5. Que recibe:
+Body:
 
 ```json
 {
   "correoNuevo": "nuevo@correo.com",
-  "contrasena": "123456"
+  "contraseña": "Actual123!"
 }
 ```
 
-6. Que responde:
+## 3) Barberos
 
-```json
-{
-  "mensaje": "Correo actualizado correctamente"
-}
-```
+### GET `/barberos` (roles 1, 3)
 
-### 6. Obtener barberos
+Lista barberos.
 
-1. Nombre: Obtener barberos
-2. URL: `http://localhost:3000/barberos`
-3. Metodo: `GET`
-4. Que hace: Lista todos los barberos registrados.
-5. Que responde:
+### GET `/barberos/:idBarbero` (roles 1, 3)
 
-```json
-[
-  {
-    "idBarbero": 1,
-    "nombreBarbero": "Carlos",
-    "telefonoBarbero": "3001112233"
-  }
-]
-```
+Obtiene barbero por id.
 
-### 7. Obtener barbero por ID
+### GET `/barberos/:idBarbero/servicios` (roles 1, 3)
 
-1. Nombre: Obtener barbero por ID
-2. URL: `http://localhost:3000/barberos/:idBarbero`
-3. Metodo: `GET`
-4. Que hace: Devuelve la informacion de un barbero especifico.
-5. Que responde:
+Servicios asignados al barbero.
 
-```json
-{
-  "idBarbero": 1,
-  "idUsuario": 7,
-  "nombreBarbero": "Carlos",
-  "telefonoBarbero": "3001112233"
-}
-```
+### POST `/barberos` (rol 3)
 
-### 8. Obtener servicios de un barbero
+Crea barbero (usuario rol 2) y retorna `contraseñaTemporal`.
 
-1. Nombre: Obtener servicios de un barbero
-2. URL: `http://localhost:3000/barberos/:idBarbero/servicios`
-3. Metodo: `GET`
-4. Que hace: Lista los servicios asignados a un barbero.
-5. Que responde:
-
-```json
-[
-  {
-    "idServicio": 1,
-    "nombreServicio": "Corte clasico",
-    "duracion": 30,
-    "costo": 15000,
-    "puntuacion": null
-  }
-]
-```
-
-### 9. Crear barbero
-
-1. Nombre: Crear barbero
-2. URL: `http://localhost:3000/barberos`
-3. Metodo: `POST`
-4. Que hace: Crea un usuario con rol barbero y genera una contrasena temporal.
-5. Que recibe:
+Body:
 
 ```json
 {
@@ -205,22 +164,13 @@
 }
 ```
 
-6. Que responde:
+### PUT `/barberos/:idBarbero` (rol 3)
 
-```json
-{
-  "message": "Barbero creado correctamente",
-  "contrasenaTemporal": "ab12cd34"
-}
-```
+Actualiza barbero.
 
-### 10. Actualizar barbero
+Nota importante del comportamiento actual: aunque el mensaje dice "al menos un campo", la validacion actual exige que `nombreBarbero` y `telefonoBarbero` sean validos cuando se invoca el endpoint.
 
-1. Nombre: Actualizar barbero
-2. URL: `http://localhost:3000/barberos/:idBarbero`
-3. Metodo: `PUT`
-4. Que hace: Actualiza nombre y/o telefono de un barbero.
-5. Que recibe:
+Body recomendado:
 
 ```json
 {
@@ -229,21 +179,9 @@
 }
 ```
 
-6. Que responde:
+### POST `/barberos/servicios` (rol 3)
 
-```json
-{
-  "message": "Barbero actualizado correctamente"
-}
-```
-
-### 11. Asignar servicios a barbero
-
-1. Nombre: Asignar servicios a barbero
-2. URL: `http://localhost:3000/barberos/servicios`
-3. Metodo: `POST`
-4. Que hace: Relaciona uno o varios servicios con un barbero.
-5. Que recibe:
+Asigna servicios al barbero.
 
 ```json
 {
@@ -252,21 +190,9 @@
 }
 ```
 
-6. Que responde:
+### DELETE `/barberos/servicios` (rol 3)
 
-```json
-{
-  "message": "Servicios asignados correctamente"
-}
-```
-
-### 12. Eliminar servicios de barbero
-
-1. Nombre: Eliminar servicios de barbero
-2. URL: `http://localhost:3000/barberos/servicios`
-3. Metodo: `DELETE`
-4. Que hace: Elimina una o varias relaciones entre un barbero y sus servicios.
-5. Que recibe:
+Elimina relaciones servicio-barbero.
 
 ```json
 {
@@ -275,43 +201,22 @@
 }
 ```
 
-6. Que responde:
+### GET `/barberos/:idBarbero/horarios` (rol 3)
 
-```json
-{
-  "message": "Servicios eliminados correctamente"
-}
-```
+Obtiene horarios configurados del barbero.
 
-### 13. Obtener horarios de un barbero
+### POST `/barberos/horarios` (rol 3)
 
-1. Nombre: Obtener horarios de un barbero
-2. URL: `http://localhost:3000/barberos/:idBarbero/horarios`
-3. Metodo: `GET`
-4. Que hace: Consulta los horarios configurados de un barbero.
-5. Que responde:
+Crea o actualiza horario semanal o excepcion de fecha.
 
-```json
-[
-  {
-    "idBarbero_Horario": 1,
-    "idBarbero": 1,
-    "diaSemana": 1,
-    "fechaEspecifica": null,
-    "horaInicio": "08:00:00",
-    "horaFin": "18:00:00",
-    "activo": 1
-  }
-]
-```
+Reglas:
 
-### 14. Crear o actualizar horario de barbero
+- Debe enviar `idBarbero`.
+- Debe enviar solo uno entre `diaSemana` o `fechaEspecifica`.
+- Si `activo = 1`, `horaInicio` y `horaFin` son obligatorios y `horaInicio < horaFin`.
+- Si `activo = 0`, `horaInicio` y `horaFin` deben ir en `null`.
 
-1. Nombre: Crear o actualizar horario de barbero
-2. URL: `http://localhost:3000/barberos/horarios`
-3. Metodo: `POST`
-4. Que hace: Crea o actualiza un horario semanal o una excepcion para un barbero.
-5. Que recibe:
+Ejemplo:
 
 ```json
 {
@@ -323,71 +228,21 @@
 }
 ```
 
-6. Que responde:
+### DELETE `/barberos/horarios/:idHorario` (rol 3)
 
-```json
-{
-  "message": "Horario configurado exitosamente"
-}
-```
+Elimina horario por `idBarbero_Horario`.
 
-### 15. Eliminar horario de barbero
+## 4) Servicios
 
-1. Nombre: Eliminar horario de barbero
-2. URL: `http://localhost:3000/barberos/horarios/:idHorario`
-3. Metodo: `DELETE`
-4. Que hace: Elimina un horario especifico de un barbero.
-5. Que responde:
+Todos los endpoints de servicios son solo rol administrador (`3`).
 
-```json
-{
-  "message": "Horario eliminado exitosamente"
-}
-```
+### GET `/servicios`
 
-### 16. Obtener servicios
+### GET `/servicios/:idServicio`
 
-1. Nombre: Obtener servicios
-2. URL: `http://localhost:3000/servicios`
-3. Metodo: `GET`
-4. Que hace: Lista todos los servicios registrados.
-5. Que responde:
+### POST `/servicios`
 
-```json
-[
-  {
-    "idServicio": 1,
-    "nombreServicio": "Corte clasico",
-    "duracion": 30,
-    "costo": 15000
-  }
-]
-```
-
-### 17. Obtener servicio por ID
-
-1. Nombre: Obtener servicio por ID
-2. URL: `http://localhost:3000/servicios/:idServicio`
-3. Metodo: `GET`
-4. Que hace: Consulta un servicio especifico.
-5. Que responde:
-
-```json
-{
-  "idServicio": 1,
-  "nombreServicio": "Corte clasico",
-  "duracion": 30,
-  "costo": 15000
-}
-```
-
-### 18. Crear servicio
-
-1. Nombre: Crear servicio
-2. URL: `http://localhost:3000/servicios`
-3. Metodo: `POST`
-4. Que hace: Crea un servicio nuevo.
-5. Que recibe:
+Crea servicio.
 
 ```json
 {
@@ -397,106 +252,36 @@
 }
 ```
 
-6. Que responde:
+Regla: `duracion` y `costo` no pueden ser negativos.
 
-```json
-{
-  "message": "Servicio creado correctamente",
-  "idServicio": 11
-}
-```
+### PUT `/servicios/:idServicio`
 
-### 19. Actualizar servicio
+Actualiza servicio por `COALESCE`.
 
-1. Nombre: Actualizar servicio
-2. URL: `http://localhost:3000/servicios/:idServicio`
-3. Metodo: `PUT`
-4. Que hace: Actualiza el nombre, duracion y/o costo de un servicio.
-5. Que recibe:
+Regla: si se envian `duracion` o `costo`, no pueden ser negativos.
 
-```json
-{
-  "nombreServicio": "Corte premium",
-  "duracion": 45,
-  "costo": 25000
-}
-```
+## 5) Reservas
 
-6. Que responde:
+Estados usados:
 
-```json
-{
-  "message": "Servicio actualizado correctamente"
-}
-```
+- `0`: cancelada
+- `1`: pendiente
+- `2`: no asistio
+- `3`: realizada
 
-### 20. Obtener reservas del cliente
+### GET `/reservas` (rol 1)
 
-1. Nombre: Obtener reservas del cliente
-2. URL: `http://localhost:3000/reservas`
-3. Metodo: `GET`
-4. Que hace: Lista las reservas del cliente autenticado. Acepta el filtro opcional `?estado=pendiente`, `cancelada`, `sin asistir` o `realizadas`.
-5. Que responde:
+Reservas del cliente autenticado (`idPerfil`) con filtro opcional `?estado=pendiente|cancelada|sin asistir|realizadas`.
 
-```json
-[
-  {
-    "idReserva": 11,
-    "idBarbero": 2,
-    "fechaReserva": "2026-03-25T14:00:00.000Z",
-    "detalleReserva": null,
-    "estadoReserva": 1,
-    "nombreBarbero": "Carlos"
-  }
-]
-```
+### GET `/reservas/:idReserva/cliente` (roles 1, 2)
 
-### 21. Obtener reserva por ID
+Obtiene reserva por id + servicios + metadata para frontend.
 
-1. Nombre: Obtener reserva por ID
-2. URL: `http://localhost:3000/reservas/:idReserva/cliente`
-3. Metodo: `GET`
-4. Que hace: Devuelve el detalle de una reserva del cliente, junto con sus servicios y metadatos de edicion.
-5. Que responde:
+### POST `/reservas` (rol 1)
 
-```json
-{
-  "idReserva": 11,
-  "idCliente": 5,
-  "idBarbero": 2,
-  "fechaReserva": "2026-03-25T14:00:00.000Z",
-  "detalleReserva": null,
-  "estadoReserva": 1,
-  "nombreBarbero": "Carlos",
-  "servicios": [
-    {
-      "idServicio": 1,
-      "nombreServicio": "Corte clasico",
-      "duracion": 30,
-      "costo": 15000
-    }
-  ],
-  "permisos": {
-    "editarFecha": true,
-    "editarHora": true,
-    "editarDetalles": true,
-    "editarServicios": false,
-    "editarBarbero": false
-  },
-  "mensajes": {
-    "edicion": "Solo puedes cambiar la fecha/hora y los detalles de la reserva",
-    "servicios": "Para cambiar servicios o barbero, debes cancelar esta reserva y crear una nueva"
-  }
-}
-```
+Crea reserva validando disponibilidad, horario, servicios del barbero, traslapes y fecha no pasada.
 
-### 22. Crear reserva
-
-1. Nombre: Crear reserva
-2. URL: `http://localhost:3000/reservas`
-3. Metodo: `POST`
-4. Que hace: Crea una reserva validando barbero, servicios, fecha, horario disponible y reservas existentes.
-5. Que recibe:
+Body:
 
 ```json
 {
@@ -506,22 +291,13 @@
 }
 ```
 
-6. Que responde:
+`fechaHora` debe enviarse en formato `YYYY-MM-DD HH:mm:ss`.
 
-```json
-{
-  "ok": true,
-  "idReserva": 11
-}
-```
+### PUT `/reservas/:idReserva` (rol 1)
 
-### 23. Actualizar reserva
+Actualiza `fechaReserva` y/o `detalleReserva`.
 
-1. Nombre: Actualizar reserva
-2. URL: `http://localhost:3000/reservas/:idReserva`
-3. Metodo: `PUT`
-4. Que hace: Actualiza la fecha y/o el detalle de una reserva, siempre que falten mas de 24 horas.
-5. Que recibe:
+Body:
 
 ```json
 {
@@ -530,21 +306,13 @@
 }
 ```
 
-6. Que responde:
+Regla activa: solo permite cambios si faltan mas de 24 horas para la reserva.
 
-```json
-{
-  "message": "Reserva actualizada exitosamente"
-}
-```
+### PUT `/reservas/:idReserva/cancelar` (rol 1)
 
-### 24. Cancelar reserva
+Cancela reserva (estado `0`) y guarda motivo en `cancelacionreserva`.
 
-1. Nombre: Cancelar reserva
-2. URL: `http://localhost:3000/reservas/:idReserva/cancelar`
-3. Metodo: `PUT`
-4. Que hace: Cancela una reserva si aun esta pendiente y faltan mas de 24 horas.
-5. Que recibe:
+Body:
 
 ```json
 {
@@ -552,48 +320,54 @@
 }
 ```
 
-6. Que responde:
+Reglas activas:
+
+- Debe estar en estado pendiente (`1`).
+- Deben faltar mas de 24 horas.
+
+### GET `/reservas/agenda` (rol 2)
+
+Agenda del barbero autenticado con cliente, servicios, duracion y costo total.
+
+### PUT `/reservas/:idReserva/estado` (rol 2)
+
+Barbero cambia estado de la reserva.
+
+Body:
 
 ```json
 {
-  "message": "Reserva cancelada exitosamente"
+  "estado": 2
 }
 ```
 
-### 25. Obtener agenda del barbero
+Valores permitidos:
 
-1. Nombre: Obtener agenda del barbero
-2. URL: `http://localhost:3000/reservas/agenda`
-3. Metodo: `GET`
-4. Que hace: Lista la agenda del barbero autenticado con cliente, servicios, duracion total y costo total.
-5. Que responde:
+- `2` (no asistio)
+- `3` (realizada)
 
-```json
-[
-  {
-    "idReserva": 11,
-    "nombreCliente": "Jose",
-    "fechaReserva": "2026-03-25T14:00:00.000Z",
-    "detalleReserva": null,
-    "servicios": "Corte clasico, Barba",
-    "duracionTotal": 60,
-    "costoTotal": 30000
-  }
-]
-```
+## 6) Disponibilidad
 
-### 26. Obtener horarios disponibles
+### GET `/disponibilidad` (rol 1)
 
-1. Nombre: Obtener horarios disponibles
-2. URL: `http://localhost:3000/disponibilidad?idBarbero=2&fecha=2026-03-25&servicios=1,2`
-3. Metodo: `GET`
-4. Que hace: Calcula los horarios disponibles para reservar segun el barbero, la fecha, los servicios y las reservas ya existentes.
-5. Que responde:
+Consulta horarios posibles para reservar.
+
+Query params obligatorios:
+
+- `idBarbero`
+- `fecha` (formato `YYYY-MM-DD`)
+- `servicios` (csv: por ejemplo `1,2`)
+
+Ejemplo:
+
+`/disponibilidad?idBarbero=2&fecha=2026-03-25&servicios=1,2`
+
+Respuesta:
 
 ```json
 {
   "duracionTotal": 60,
-  "horariosDisponibles": ["08:00", "09:00", "10:30"],
+  "horariosDisponibles": ["08:00", "08:30", "09:00"],
   "horarioTrabajo": {
     "inicio": "08:00:00",
     "fin": "18:00:00",
@@ -603,29 +377,19 @@
 }
 ```
 
-### 27. Obtener perfil del cliente
+## 7) Clientes
 
-1. Nombre: Obtener perfil del cliente
-2. URL: `http://localhost:3000/clientes`
-3. Metodo: `GET`
-4. Que hace: Devuelve el perfil del cliente autenticado.
-5. Que responde:
+### GET `/clientes` (rol 1)
 
-```json
-{
-  "nombreCliente": "Jose",
-  "telefonoCliente": "3001234567",
-  "correoUsuario": "jose@correo.com"
-}
-```
+Obtiene perfil del cliente autenticado.
 
-### 28. Actualizar perfil del cliente
+### PUT `/clientes` (rol 1)
 
-1. Nombre: Actualizar perfil del cliente
-2. URL: `http://localhost:3000/clientes`
-3. Metodo: `PUT`
-4. Que hace: Actualiza el nombre y/o telefono del cliente autenticado.
-5. Que recibe:
+Actualiza perfil cliente.
+
+Nota importante del comportamiento actual: aunque el endpoint indica que puede actualizar uno u otro campo, la validacion actual exige que `nombreCliente` y `telefonoCliente` sean validos cuando se invoca.
+
+Body recomendado:
 
 ```json
 {
@@ -634,10 +398,16 @@
 }
 ```
 
-6. Que responde:
+---
 
-```json
-{
-  "message": "Perfil actualizado correctamente"
-}
-```
+## Variables de entorno esperadas
+
+Backend usa:
+
+- `PORT` (opcional, por defecto `3000`)
+- `JWT_SECRET`
+- `DB_HOST`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+
