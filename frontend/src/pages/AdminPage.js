@@ -186,7 +186,7 @@ function TabBarberos({ barbaroEditar, barberos, servicios, cargando, barbaroSele
         </button>
       </div>
 
-      {showFormBarbero && <FormBarbero barbaroEditar={barbaroEditar} onClose={() => setShowFormBarbero(false)} onSuccess={() => { setShowFormBarbero(false); onRefresh(); setBarberoEditar(null); }} />}
+      {showFormBarbero && <FormBarbero barbaroEditar={barbaroEditar} onClose={() => {setShowFormBarbero(false); onRefresh();}} onSuccess={() => { setShowFormBarbero(false); onRefresh(); setBarberoEditar(null); }} />}
 
       {cargando ? <p>Cargando barberos...</p> : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>

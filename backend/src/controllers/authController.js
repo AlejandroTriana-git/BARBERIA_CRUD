@@ -8,7 +8,7 @@ import { validarEmail,
           validarNombre
 } from "../utils/validaciones.js";
 const JWT_SECRET = process.env.JWT_SECRET || "tu_clave_secreta_corta"; // en prod usar env var
-const JWT_EXPIRES_IN = "8h"; // ajusta según necesidad
+const JWT_EXPIRES_IN = "1h"; // ajusta según necesidad
 
 
 
@@ -142,7 +142,7 @@ export const verificarAuth = async (req, res) => {
 
       if (intentosRestantes > 0) {
         return res.status(400).json({
-          error: `Código inválido o expirado. Te quedan ${intentosRestantes} intento(s).`
+          error: `Correo o contraseña invalido. Te quedan ${intentosRestantes} intento(s).`
         });
       } 
     }
@@ -190,6 +190,18 @@ export const verificarAuth = async (req, res) => {
     const payload = { idUsuario: idUsuario, rol: rolNumero , idPerfil: idPerfil, email: correo};
     const tokenWeb = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
+    // Invalidar tokens anteriores del usuario
+    await pool.query(
+      'UPDATE Token SET estadoActivo = 0 WHERE idUsuario = ? AND estadoActivo = 1',
+      [idUsuario]
+    );
+
+    // Guardar el nuevo token en BD
+    await pool.query(
+      'INSERT INTO Token (token, idUsuario, estadoActivo) VALUES (?, ?, 1)',
+      [tokenWeb, idUsuario]
+    );
+
     const user = { idUsuario: idUsuario, rol: rolNumero, idPerfil: idPerfil , email: correo};
     return res.status(200).json({ message: "Verificación exitosa", tokenWeb, JWT_EXPIRES_IN, user });
 
@@ -205,7 +217,7 @@ export const verificarAuth = async (req, res) => {
 };
 
 
-//El registro unicamente de los cleintes
+//El registro unicamente de los clientes
 
 //PERMISO: CLIENTE
 export const registrarCliente = async (req, res) => {

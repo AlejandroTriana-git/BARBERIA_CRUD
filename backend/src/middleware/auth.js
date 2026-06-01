@@ -1,8 +1,9 @@
 import jwt from "jsonwebtoken";
+import pool from "../config/db.js";
 
 
 
-export const verificarTokenJWT = (req, res, next) => {
+export const verificarTokenJWT = async (req, res, next) => {
   try {
     console.log("HEADERS:", req.headers.authorization);
 
@@ -16,6 +17,16 @@ export const verificarTokenJWT = (req, res, next) => {
     console.log("TOKEN RECIBIDO:", token);
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Validar que el token esté en BD y sea activo
+    const [rows] = await pool.query(
+      'SELECT idToken FROM Token WHERE token = ? AND estadoActivo = 1',
+      [token]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: "Token no válido o expirado" });
+    }
 
     req.usuario = decoded;
     next();

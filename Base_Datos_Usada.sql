@@ -46,6 +46,26 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `mydb`.`Token`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`Token` (
+  `idToken` INT NOT NULL AUTO_INCREMENT,
+  `token` LONGTEXT NOT NULL,
+  `idUsuario` INT NOT NULL,
+  `estadoActivo` TINYINT(1) DEFAULT 1,
+  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`idToken`),
+  INDEX `idx_idUsuario` (`idUsuario` ASC) VISIBLE,
+  INDEX `idx_estadoActivo` (`estadoActivo` ASC) VISIBLE,
+  CONSTRAINT `fk_Token_Usuario`
+    FOREIGN KEY (`idUsuario`)
+    REFERENCES `mydb`.`Usuario` (`idUsuario`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `mydb`.`Cliente`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`Cliente` (
